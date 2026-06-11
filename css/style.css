@@ -1,0 +1,822 @@
+/* ============================================================
+   灘チャレンジ2026 共通スタイルシート
+   テーマ: ともに響き合う灘の心と未来の風（青系）
+   設計: CSS変数 / BEMライク命名 / モバイルファースト
+   ============================================================ */
+
+:root {
+  --color-primary:      #1a4a8a;   /* メインカラー：深い紺青 */
+  --color-accent:       #3a82d4;   /* アクセント：明るい青 */
+  --color-accent-light: #6faee8;   /* ライトアクセント */
+  --color-bg:           #f0f6ff;   /* ページ背景：薄い水色 */
+  --color-bg-section:   #e8f2fb;   /* セクション背景 */
+  --color-white:        #ffffff;
+  --color-text:         #1a1a2e;   /* 本文テキスト */
+  --color-text-sub:     #4a5568;   /* サブテキスト */
+  --color-border:       #c7ddf5;
+  --color-hero-grad1:   #0d2a5c;   /* ヒーローグラデーション開始 */
+  --color-hero-grad2:   #1a6090;   /* ヒーローグラデーション終了 */
+  --font-main: 'Noto Sans JP', sans-serif;
+  --border-radius: 8px;
+  --shadow: 0 4px 16px rgba(26, 74, 138, 0.12);
+  --shadow-hover: 0 10px 28px rgba(26, 74, 138, 0.22);
+  --transition: 0.3s ease;
+}
+
+/* ---------- リセット・ベース ---------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-main);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: var(--color-primary);
+}
+
+ul {
+  list-style: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- レイアウト共通 ---------- */
+.container {
+  width: min(100% - 2.5rem, 1080px);
+  margin-inline: auto;
+}
+
+.section {
+  padding: 4rem 0;
+}
+
+.section--alt {
+  background-color: var(--color-bg-section);
+}
+
+.section__title {
+  font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.section__title::after {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 4px;
+  margin: 0.8rem auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+}
+
+.section__lead {
+  text-align: center;
+  color: var(--color-text-sub);
+  margin-bottom: 2.5rem;
+}
+
+/* ---------- ヘッダー ---------- */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  background-color: var(--color-white);
+  box-shadow: 0 1px 0 var(--color-border);
+  transition: background-color var(--transition), box-shadow var(--transition);
+}
+
+.header.is-scrolled {
+  background-color: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.header__logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.04em;
+}
+
+.header__logo:hover {
+  color: var(--color-accent);
+}
+
+.header__logo-year {
+  color: var(--color-accent);
+}
+
+/* ナビゲーション */
+.nav__list {
+  display: none;
+}
+
+.nav__toggle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nav__toggle-bar {
+  width: 100%;
+  height: 2px;
+  background-color: var(--color-primary);
+  border-radius: 1px;
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.nav__toggle[aria-expanded="true"] .nav__toggle-bar:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.nav__toggle[aria-expanded="true"] .nav__toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.nav__toggle[aria-expanded="true"] .nav__toggle-bar:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* モバイル：開いた状態のナビ */
+.nav__list.is-open {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 64px;
+  left: 0;
+  width: 100%;
+  background-color: var(--color-white);
+  box-shadow: var(--shadow);
+  padding: 0.5rem 0 1rem;
+}
+
+.nav__link {
+  display: block;
+  padding: 0.8rem 1.5rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.nav__link:hover,
+.nav__link.is-current {
+  color: var(--color-accent);
+}
+
+@media (min-width: 768px) {
+  .nav__toggle {
+    display: none;
+  }
+
+  .nav__list {
+    display: flex;
+    gap: 0.2rem;
+  }
+
+  .nav__link {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.92rem;
+    border-radius: var(--border-radius);
+  }
+
+  .nav__link:hover {
+    background-color: var(--color-bg-section);
+  }
+}
+
+/* ---------- ヒーロー ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: 64px;
+  padding: 6rem 0 7rem;
+  background: linear-gradient(135deg, var(--color-hero-grad1), var(--color-hero-grad2));
+  color: var(--color-white);
+  text-align: center;
+}
+
+.hero__inner {
+  position: relative;
+  z-index: 2;
+}
+
+.hero__subcopy {
+  font-size: clamp(1rem, 2.2vw, 1.3rem);
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  margin-bottom: 1rem;
+  color: var(--color-accent-light);
+}
+
+.hero__title {
+  font-size: clamp(1.6rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  margin-bottom: 2rem;
+}
+
+.hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+}
+
+.hero__badge {
+  display: inline-block;
+  padding: 0.5rem 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* 波紋アニメーション（テーマ「響き合う」の視覚化） */
+.hero__ripples {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.ripple {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 60vmax;
+  height: 60vmax;
+  margin-left: -30vmax;
+  margin-top: -30vmax;
+  border: 2px solid rgba(111, 174, 232, 0.35);
+  border-radius: 50%;
+  animation: ripple 6s linear infinite;
+}
+
+.ripple:nth-child(2) {
+  animation-delay: 2s;
+  border-color: rgba(58, 130, 212, 0.3);
+}
+
+.ripple:nth-child(3) {
+  animation-delay: 4s;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+@keyframes ripple {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ---------- ボタン ---------- */
+.btn {
+  display: inline-block;
+  padding: 0.85rem 2.2rem;
+  border-radius: 999px;
+  font-family: var(--font-main);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: transform var(--transition), box-shadow var(--transition), background-color var(--transition), color var(--transition);
+}
+
+.btn--primary {
+  background-color: var(--color-accent);
+  color: var(--color-white);
+  border: 2px solid var(--color-accent);
+  box-shadow: var(--shadow);
+}
+
+.btn--primary:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.btn--outline {
+  background-color: transparent;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+}
+
+.btn--outline:hover {
+  background-color: var(--color-accent);
+  color: var(--color-white);
+  transform: translateY(-2px);
+}
+
+.btn--hero {
+  background-color: var(--color-white);
+  color: var(--color-primary);
+  border: 2px solid var(--color-white);
+}
+
+.btn--hero:hover {
+  background-color: transparent;
+  color: var(--color-white);
+  transform: translateY(-2px);
+}
+
+.section__more {
+  text-align: center;
+  margin-top: 2.5rem;
+}
+
+/* ---------- カード共通 ---------- */
+.card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* どんなお祭り？ 3カラムカード */
+.feature-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .feature-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.card-feature {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.card-feature__icon {
+  font-size: 2.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.card-feature__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.8rem;
+}
+
+.card-feature__text {
+  font-size: 0.95rem;
+  color: var(--color-text-sub);
+  text-align: left;
+}
+
+/* ---------- 灘チャレンジの思い ---------- */
+.about-digest {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.about-digest__heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+
+.about-digest p {
+  margin-bottom: 1.2rem;
+}
+
+/* ---------- スポットカード ---------- */
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 2.2rem;
+}
+
+.category-filter__btn {
+  padding: 0.45rem 1.2rem;
+  border: 1.5px solid var(--color-accent);
+  border-radius: 999px;
+  background-color: var(--color-white);
+  color: var(--color-accent);
+  font-family: var(--font-main);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.category-filter__btn:hover {
+  background-color: var(--color-bg-section);
+}
+
+.category-filter__btn.is-active {
+  background-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+.spot-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .spot-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .spot-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.card-spot__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: var(--color-bg-section);
+}
+
+.card-spot__img {
+  width: 100%;
+  height: 100%;
+}
+
+/* 画像が存在しない場合のフォールバック（JSで .is-fallback を付与） */
+.card-spot__media.is-fallback .card-spot__img {
+  display: none;
+}
+
+.card-spot__fallback {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-bg-section), var(--color-border));
+}
+
+.card-spot__media.is-fallback .card-spot__fallback {
+  display: flex;
+}
+
+.card-spot__body {
+  padding: 1.2rem 1.3rem 1.4rem;
+}
+
+.card-spot__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.card-spot__tag {
+  display: inline-block;
+  padding: 0.15rem 0.8rem;
+  border-radius: 999px;
+  background-color: var(--color-bg-section);
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.card-spot__desc {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  color: var(--color-text-sub);
+}
+
+/* ---------- ニュース ---------- */
+.news-list {
+  max-width: 760px;
+  margin-inline: auto;
+  display: grid;
+  gap: 1rem;
+}
+
+.card-news {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1.1rem 1.4rem;
+}
+
+@media (min-width: 768px) {
+  .card-news {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+  }
+}
+
+.card-news__date {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-news__title {
+  font-size: 0.98rem;
+}
+
+/* ---------- 協力・支援者 ---------- */
+.supporter-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .supporter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card-supporter {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.card-supporter__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.card-supporter__placeholder {
+  padding: 1.6rem 1rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--border-radius);
+  color: var(--color-text-sub);
+  font-size: 0.92rem;
+  background-color: var(--color-bg);
+}
+
+/* ---------- お問い合わせ ---------- */
+.contact {
+  text-align: center;
+}
+
+.contact__mail {
+  font-size: clamp(1rem, 2.5vw, 1.3rem);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 1rem 0 2rem;
+  word-break: break-all;
+}
+
+/* ---------- フッター ---------- */
+.footer {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  padding: 2.5rem 0 2rem;
+  text-align: center;
+}
+
+.footer__sns {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.footer__sns-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  color: var(--color-white);
+  transition: background-color var(--transition), transform var(--transition);
+}
+
+.footer__sns-link:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+  transform: translateY(-3px);
+}
+
+.footer__sns-link svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.footer__contact {
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.footer__contact a {
+  color: var(--color-accent-light);
+}
+
+.footer__copyright {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ---------- 下層ページ共通 ---------- */
+.page-hero {
+  margin-top: 64px;
+  padding: 4.5rem 0 3.5rem;
+  background: linear-gradient(135deg, var(--color-hero-grad1), var(--color-hero-grad2));
+  color: var(--color-white);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-hero__title {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.page-hero .ripple {
+  border-width: 1.5px;
+}
+
+.prose {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.prose h2 {
+  font-size: 1.3rem;
+  color: var(--color-primary);
+  margin: 2.4rem 0 1rem;
+  padding-left: 0.8rem;
+  border-left: 5px solid var(--color-accent);
+}
+
+.prose h2:first-child {
+  margin-top: 0;
+}
+
+.prose p {
+  margin-bottom: 1.2rem;
+}
+
+/* ---------- アクセス ---------- */
+.access-map {
+  max-width: 860px;
+  margin: 0 auto 2.5rem;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.access-map iframe {
+  display: block;
+  width: 100%;
+  height: 420px;
+  border: 0;
+}
+
+.access-info {
+  max-width: 760px;
+  margin-inline: auto;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.access-info__item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.3rem 1.5rem;
+  align-items: flex-start;
+}
+
+.access-info__icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.access-info__label {
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.2rem;
+}
+
+/* ---------- カンパ ---------- */
+.donation-lead {
+  max-width: 760px;
+  margin: 0 auto 2.5rem;
+  text-align: center;
+}
+
+.donation-account {
+  max-width: 640px;
+  margin: 0 auto 3rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+/* ---------- フェードインアニメーション ---------- */
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.fade-in.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- アクセシビリティ：reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .ripple {
+    display: none;
+  }
+
+  .fade-in {
+    opacity: 1;
+    transform: none;
+  }
+}
