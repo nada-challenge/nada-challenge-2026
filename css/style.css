@@ -22,6 +22,7 @@
   --color-deep-blue: #1b4f9c;
   --color-navy:      #0e2a52;
   --color-teal:      #1e8a6e;
+  --color-teal-text: #14705a;  /* teal のテキスト用（AA コントラスト確保） */
 
   /* Wash */
   --color-wash-blue: #eaf2fb;
@@ -147,7 +148,7 @@ button {
   font-weight: 500;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--color-cerulean);
+  color: var(--color-deep-blue);
   margin-bottom: var(--space-2);
 }
 
@@ -211,7 +212,7 @@ button {
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.18em;
-  color: var(--color-cerulean);
+  color: var(--color-deep-blue);
   margin-left: var(--space-2);
   vertical-align: 0.12em;
 }
@@ -366,7 +367,7 @@ button {
 
 /* 開催日バッジ — teal を使う数少ない場所 */
 .hero__date {
-  color: var(--color-teal);
+  color: var(--color-teal-text);
   font-weight: 500;
 }
 
@@ -843,7 +844,7 @@ button {
   font-family: var(--font-caption);
   font-size: 0.75rem;
   letter-spacing: 0.08em;
-  color: rgba(253, 253, 251, 0.45);
+  color: rgba(253, 253, 251, 0.62);
 }
 
 /* ------------------------------------------------------------
