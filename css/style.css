@@ -384,25 +384,42 @@ button {
 .ribbon-divider {
   display: block;
   width: 100%;
-  height: auto;
-  margin-block: calc(var(--space-5) * -1) 0;
+  /* height:auto + preserveAspectRatio="none" だと、画面幅に比例して高さが
+     決まり、スマホ幅では波が数十pxまで潰れて直線化していた。
+     高さを明示的に固定し、波の振幅を画面幅によらず保つ。 */
+  height: 90px;
+  margin-block: calc(var(--space-4) * -1) 0;
   pointer-events: none;
 }
 
 .ribbon-divider path {
   fill: none;
   stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  /* dasharray / dashoffset は JS が各 path の実長から設定する。
+     JS が動かない場合はこのまま実線として表示される（線が消えない）。 */
 }
 
 .ribbon-divider.is-drawn path {
   transition: stroke-dashoffset 1.6s var(--ease-out);
-  stroke-dashoffset: 0;
 }
 
 .ribbon-divider.is-drawn path:nth-child(2) { transition-delay: 0.2s; }
 .ribbon-divider.is-drawn path:nth-child(3) { transition-delay: 0.4s; }
+
+/* リボン波：画面幅ごとに高さを調整し、潰れ・過剰な余白を防ぐ */
+@media (max-width: 768px) {
+  .ribbon-divider {
+    height: 64px;
+    margin-block: calc(var(--space-3) * -1) 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .ribbon-divider {
+    height: 52px;
+    margin-block: calc(var(--space-2) * -1) 0;
+  }
+}
 
 /* ------------------------------------------------------------
    7. セクション共通
@@ -1166,5 +1183,102 @@ button {
 
   .ribbon-divider path {
     stroke-dashoffset: 0 !important;
+  }
+}
+
+/* ------------------------------------------------------------
+   24. 開催日カウントダウン（ヒーロー内）
+------------------------------------------------------------ */
+.hero__countdown {
+  margin-top: var(--space-3);
+  font-family: var(--font-caption);
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  color: var(--color-teal-text);
+}
+
+/* コピーの段階表示に4番目（カウントダウン）の遅延を追加 */
+.is-loaded .hero__copy > *:nth-child(4) { transition-delay: 1.1s; }
+
+/* ------------------------------------------------------------
+   25. ヒーローの風レイヤー（青い光の束）／クリック時のひと吹き
+   （いずれも JS が生成する装飾。装飾のみ・操作を妨げない）
+   風レイヤーは SVG。白背景でも映える青の光が緩やかに撚れる。
+------------------------------------------------------------ */
+.hero__wind {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  will-change: transform;
+  /* z-index 指定なし＝ .hero__visual の上・.hero__inner(z-index:1) の下 */
+}
+
+.wind-gust {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 90; /* ヘッダー(100)より下 */
+}
+
+/* ------------------------------------------------------------
+   26. 協賛企業リスト（データ駆動描画）
+------------------------------------------------------------ */
+.sponsor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sponsor-list li {
+  font-size: 0.9rem;
+  color: var(--color-ink-sub);
+  padding: 0.3em 1em;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+}
+
+/* ------------------------------------------------------------
+   27. パレードページ：写真の差し込み枠
+   （写真が届くまではプレースホルダー表示。後から差し替え可能）
+------------------------------------------------------------ */
+.parade-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.photo-frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: var(--color-wash-blue);
+  border: 1px solid var(--color-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-frame__label {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: var(--color-deep-blue);
+}
+
+@media (max-width: 768px) {
+  .parade-photos {
+    grid-template-columns: 1fr;
   }
 }
