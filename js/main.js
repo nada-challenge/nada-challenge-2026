@@ -219,10 +219,30 @@
     var ribbons = document.querySelectorAll('.ribbon-divider');
     if (ribbons.length === 0) return;
 
-    if (!('IntersectionObserver' in window) || prefersReduced) {
-      ribbons.forEach(function (el) {
-        el.classList.add('is-drawn');
+    /* 各 path の実長を測り、dasharray / dashoffset を実数で設定する。
+       これで pathLength 属性の有無や preserveAspectRatio="none" による
+       引き伸ばしに依存せず、確実に「描かれていく」演出になる。 */
+    var prepare = function (el) {
+      var paths = el.querySelectorAll('path');
+      paths.forEach(function (p) {
+        var len;
+        try { len = p.getTotalLength(); } catch (e) { len = 0; }
+        if (!len) return;
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = prefersReduced ? 0 : len;
       });
+    };
+
+    var draw = function (el) {
+      var paths = el.querySelectorAll('path');
+      paths.forEach(function (p) { p.style.strokeDashoffset = 0; });
+      el.classList.add('is-drawn');
+    };
+
+    ribbons.forEach(prepare);
+
+    if (!('IntersectionObserver' in window) || prefersReduced) {
+      ribbons.forEach(draw);
       return;
     }
 
@@ -230,12 +250,12 @@
       function (entries) {
         entries.forEach(function (entry) {
           if (entry.isIntersecting) {
-            entry.target.classList.add('is-drawn');
+            draw(entry.target);
             observer.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.4 }
+      { threshold: 0.2 }
     );
 
     ribbons.forEach(function (el) {
@@ -360,86 +380,105 @@
   ---------------------------------------------------------- */
   (function () {
     var hero = document.querySelector('.hero[data-wind]');
-    if (!hero || prefersReduced) return;
+    if (!hero) return;
 
     var visual = hero.querySelector('.hero__visual');
     var heroImg = hero.querySelector('.hero__img');
     if (!visual) return;
 
-    /* --- 装飾レイヤー（canvas）を .hero__visual の直後に挿入 --- */
-    var canvas = document.createElement('canvas');
-    canvas.className = 'hero__wind';
-    canvas.setAttribute('aria-hidden', 'true');
-    visual.insertAdjacentElement('afterend', canvas);
-    var ctx = canvas.getContext('2d');
+    var SVGNS = 'http://www.w3.org/2000/svg';
 
-    /* --- 既存トークンから色を取得（新しい色は定義しない） --- */
-    var rootStyle = getComputedStyle(document.documentElement);
-    var hexToRgba = function (hex, alpha) {
-      var h = hex.trim().replace('#', '');
-      var r = parseInt(h.substring(0, 2), 16);
-      var g = parseInt(h.substring(2, 4), 16);
-      var b = parseInt(h.substring(4, 6), 16);
-      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-    };
-    var COLORS = [
-      rootStyle.getPropertyValue('--color-cerulean')  || '#2e7cd6',
-      rootStyle.getPropertyValue('--color-deep-blue') || '#1b4f9c',
-      rootStyle.getPropertyValue('--color-teal')      || '#1e8a6e'
+    /* --- 装飾レイヤー（SVG の光の束）を .hero__visual の直後に挿入 --- */
+    var svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('class', 'hero__wind');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('viewBox', '0 0 1440 600');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+
+    /* グラデーション定義（色は既存トークン由来：deep-blue / cerulean / teal-ish） */
+    var defs = document.createElementNS(SVGNS, 'defs');
+    defs.innerHTML =
+      '<linearGradient id="hw-core" x1="0" y1="0" x2="1" y2="0">' +
+        '<stop offset="0" stop-color="#1b4f9c" stop-opacity="0"/>' +
+        '<stop offset="0.2" stop-color="#1b4f9c" stop-opacity="0.55"/>' +
+        '<stop offset="0.5" stop-color="#2e7cd6" stop-opacity="0.9"/>' +
+        '<stop offset="0.8" stop-color="#5fb0e8" stop-opacity="0.55"/>' +
+        '<stop offset="1" stop-color="#5fb0e8" stop-opacity="0"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="hw-thin" x1="0" y1="0" x2="1" y2="0">' +
+        '<stop offset="0" stop-color="#2e7cd6" stop-opacity="0"/>' +
+        '<stop offset="0.4" stop-color="#2e7cd6" stop-opacity="0.5"/>' +
+        '<stop offset="0.65" stop-color="#7cc4f0" stop-opacity="0.7"/>' +
+        '<stop offset="1" stop-color="#7cc4f0" stop-opacity="0"/>' +
+      '</linearGradient>';
+    svg.appendChild(defs);
+
+    /* 中心線 y=300 を基準に、撚れる線を配置。
+       prefers-reduced-motion 時は <animate> を付けず静止した束にする。 */
+    var CY = 300;
+    var lineDefs = [
+      { grad: 'hw-core', w: 3.2, op: 1.0,  dur: 11   },
+      { grad: 'hw-core', w: 2.6, op: 0.88, dur: 12.5 },
+      { grad: 'hw-core', w: 2.2, op: 0.82, dur: 13.5 },
+      { grad: 'hw-thin', w: 1.4, op: 0.78, dur: 10   },
+      { grad: 'hw-thin', w: 1.2, op: 0.72, dur: 15   },
+      { grad: 'hw-thin', w: 1.0, op: 0.66, dur: 12   },
+      { grad: 'hw-thin', w: 0.9, op: 0.60, dur: 16   },
+      { grad: 'hw-thin', w: 0.8, op: 0.50, dur: 9    },
+      { grad: 'hw-thin', w: 0.7, op: 0.45, dur: 17   },
+      { grad: 'hw-thin', w: 0.6, op: 0.40, dur: 13   }
     ];
 
-    /* --- 状態 --- */
-    var W = 0, H = 0, DPR = 1;
-    var wisps = [];
-    var rafId = null;
-    var running = false;
-    var inView = true;
-    var isTouch = window.matchMedia('(hover: none)').matches;
-
-    /* パララックス：目標値と現在値（lerp で滑らかに追従） */
-    var targetX = 0, targetY = 0, curX = 0, curY = 0;
-    var PARALLAX_PX = 6; // 最大移動量（控えめに数px）
-
-    var resize = function () {
-      DPR = Math.min(window.devicePixelRatio || 1, 2); // 高DPIは2倍まで
-      W = hero.clientWidth;
-      H = hero.clientHeight;
-      canvas.width = W * DPR;
-      canvas.height = H * DPR;
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    };
-
-    /* --- 流線（wisp）の生成。本数は控えめに --- */
-    var WISP_COUNT = window.innerWidth < 768 ? 5 : 8;
-
-    var newWisp = function (spawnAnywhere) {
-      var len = 90 + Math.random() * 140;       // 流線の長さ
-      return {
-        x: spawnAnywhere ? Math.random() * W : -len,
-        y: H * (0.12 + Math.random() * 0.76),   // 縦位置はランダム
-        len: len,
-        speed: 0.35 + Math.random() * 0.5,      // 横方向の速さ（緩やか）
-        amp: 4 + Math.random() * 9,             // 上下の揺らぎ幅
-        k: 0.004 + Math.random() * 0.006,       // 揺らぎの波長
-        phase: Math.random() * Math.PI * 2,
-        width: 0.8 + Math.random() * 0.7,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        alpha: 0.10 + Math.random() * 0.14      // ごく淡く
+    /* 撚れ用の3キーフレーム d 値を生成（中心 CY 付近で上下に振らせる） */
+    var rand = function (a, b) { return a + Math.random() * (b - a); };
+    var makeFrames = function () {
+      var base = CY + rand(-12, 12);
+      var a1 = rand(-58, -36), a2 = rand(36, 58);       // 振幅（上下）
+      var p = function (y1, y2, y3, y4) {
+        return 'M-260,' + base.toFixed(0) +
+               ' C-60,' + y1 + ' 360,' + y2 + ' 760,' + base.toFixed(0) +
+               ' C1060,' + y3 + ' 1300,' + y4 + ' 1700,' + base.toFixed(0);
       };
+      var f1 = p((base + a1).toFixed(0), (base + a1 * 0.6).toFixed(0), (base + a2).toFixed(0), (base + a2 * 0.5).toFixed(0));
+      var f2 = p((base + a2).toFixed(0), (base + a2 * 0.6).toFixed(0), (base + a1).toFixed(0), (base + a1 * 0.5).toFixed(0));
+      return f1 + ';' + f2 + ';' + f1;
     };
 
-    var initWisps = function () {
-      wisps = [];
-      for (var i = 0; i < WISP_COUNT; i++) wisps.push(newWisp(true));
-    };
+    lineDefs.forEach(function (def) {
+      var path = document.createElementNS(SVGNS, 'path');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', 'url(#' + def.grad + ')');
+      path.setAttribute('stroke-width', def.w);
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('opacity', def.op);
+      var frames = makeFrames();
+      var first = frames.split(';')[0];
+      path.setAttribute('d', first);
+      if (!prefersReduced) {
+        var anim = document.createElementNS(SVGNS, 'animate');
+        anim.setAttribute('attributeName', 'd');
+        anim.setAttribute('dur', def.dur + 's');
+        anim.setAttribute('repeatCount', 'indefinite');
+        anim.setAttribute('calcMode', 'spline');
+        anim.setAttribute('keyTimes', '0;0.5;1');
+        anim.setAttribute('keySplines', '0.5 0 0.5 1;0.5 0 0.5 1');
+        anim.setAttribute('values', frames);
+        path.appendChild(anim);
+      }
+      svg.appendChild(path);
+    });
 
-    /* --- 描画ループ --- */
+    visual.insertAdjacentElement('afterend', svg);
+
+    /* --- パララックス（画像と光の束を数pxだけ追従させる） --- */
+    var isTouch = window.matchMedia('(hover: none)').matches;
+    var targetX = 0, targetY = 0, curX = 0, curY = 0;
+    var PARALLAX_PX = 6;
+    var rafId = null, running = false, inView = true;
     var time = 0;
-    var draw = function () {
-      ctx.clearRect(0, 0, W, H);
-      time += 0.016;
 
-      /* パララックス目標：タッチ端末はゆっくり自動ドリフト */
+    var loop = function () {
+      time += 0.016;
       if (isTouch) {
         targetX = Math.sin(time * 0.25) * (PARALLAX_PX * 0.6);
         targetY = Math.cos(time * 0.2) * (PARALLAX_PX * 0.4);
@@ -449,53 +488,22 @@
       if (heroImg) {
         heroImg.style.transform = 'translate(' + curX.toFixed(2) + 'px,' + curY.toFixed(2) + 'px) scale(1.02)';
       }
-      /* 風レイヤーは画像より少し大きく動かして奥行き感を出す */
-      ctx.save();
-      ctx.translate(curX * 1.6, curY * 1.6);
-
-      for (var i = 0; i < wisps.length; i++) {
-        var w = wisps[i];
-        w.x += w.speed;
-
-        /* 端のフェード（出入りで急に現れないように） */
-        var edge = Math.min(1, (w.x + w.len) / 120, (W + w.len - w.x) / 160);
-        if (edge < 0) edge = 0;
-
-        ctx.beginPath();
-        var STEP = 14;
-        for (var t = 0; t <= w.len; t += STEP) {
-          var px = w.x - t;
-          var py = w.y + Math.sin(px * w.k + w.phase + time * 0.6) * w.amp;
-          if (t === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.strokeStyle = hexToRgba(w.color, w.alpha * edge);
-        ctx.lineWidth = w.width;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        if (w.x - w.len > W + 40) wisps[i] = newWisp(false); // 画面外で再生成
-      }
-      ctx.restore();
-
-      rafId = running ? requestAnimationFrame(draw) : null;
+      svg.style.transform = 'translate(' + (curX * 1.6).toFixed(2) + 'px,' + (curY * 1.6).toFixed(2) + 'px)';
+      rafId = running ? requestAnimationFrame(loop) : null;
     };
 
-    /* --- 起動／停止（タブ非表示・画面外で止める） --- */
     var updateRunning = function () {
-      var shouldRun = inView && !document.hidden;
-      if (shouldRun && !running) {
-        running = true;
-        rafId = requestAnimationFrame(draw);
-      } else if (!shouldRun && running) {
-        running = false;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-      }
+      var shouldRun = inView && !document.hidden && !isTouch;
+      if (shouldRun && !running) { running = true; rafId = requestAnimationFrame(loop); }
+      else if (!shouldRun && running) { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; }
     };
+
+    /* タッチ端末では追従ループを回さず、画像は軽い拡大のみ（SVGの撚れは自走） */
+    if (isTouch && heroImg) {
+      heroImg.style.transform = 'scale(1.02)';
+    }
 
     document.addEventListener('visibilitychange', updateRunning);
-
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) {
         inView = entries[0].isIntersecting;
@@ -503,7 +511,6 @@
       }, { threshold: 0 }).observe(hero);
     }
 
-    /* --- ポインタ追従（スロットル付き・タッチ端末は無し） --- */
     if (!isTouch) {
       var pending = false;
       hero.addEventListener('pointermove', function (e) {
@@ -511,31 +518,16 @@
         pending = true;
         requestAnimationFrame(function () {
           var rect = hero.getBoundingClientRect();
-          var nx = (e.clientX - rect.left) / rect.width - 0.5;  // -0.5〜0.5
+          var nx = (e.clientX - rect.left) / rect.width - 0.5;
           var ny = (e.clientY - rect.top) / rect.height - 0.5;
-          targetX = nx * -PARALLAX_PX * 2; // ポインタと逆方向に僅かに
+          targetX = nx * -PARALLAX_PX * 2;
           targetY = ny * -PARALLAX_PX;
           pending = false;
         });
       });
-      hero.addEventListener('pointerleave', function () {
-        targetX = 0;
-        targetY = 0;
-      });
+      hero.addEventListener('pointerleave', function () { targetX = 0; targetY = 0; });
     }
 
-    var resizePending = false;
-    window.addEventListener('resize', function () {
-      if (resizePending) return;
-      resizePending = true;
-      requestAnimationFrame(function () {
-        resize();
-        resizePending = false;
-      });
-    });
-
-    resize();
-    initWisps();
     updateRunning();
   })();
 
