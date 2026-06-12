@@ -25,7 +25,8 @@
     "@type": "Event",
     "name": "灘チャレンジ2026",
     "description": "1995年の阪神・淡路大震災の復興祭として始まった、神戸市灘区の地域のお祭り。テーマは「ともに響き合う灘の心と未来の風」。",
-    "startDate": "2026-09",
+    "startDate": "2026-09-20T11:00:00+09:00",
+    "endDate": "2026-09-20T16:00:00+09:00",
     "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
     "eventStatus": "https://schema.org/EventScheduled",
     "location": {
@@ -36,19 +37,24 @@
         "addressLocality": "神戸市灘区",
         "addressRegion": "兵庫県",
         "addressCountry": "JP"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 34.71356,
+        "longitude": 135.22862
       }
     },
     "organizer": {
       "@type": "Organization",
       "name": "灘チャレンジ実行委員会",
-      "email": "nadachallenge1995@gmail.com"
+      "email": "nadachallenge.web@outlook.jp"
     },
     "image": "https://nada-challenge.github.io/nada-challenge-2026/img/ogp.jpg",
     "url": "https://nada-challenge.github.io/nada-challenge-2026/"
   }
   </script>
 </head>
-<body>
+<body data-wind-gust>
 
   <!-- ========== ヘッダー ========== -->
   <header class="header">
@@ -62,6 +68,7 @@
         </button>
         <ul class="nav__list" id="nav-list">
           <li><a href="about.html" class="nav__link">灘チャレンジって？</a></li>
+          <li><a href="parade.html" class="nav__link">パレード</a></li>
           <li><a href="spot.html" class="nav__link">灘区おすすめスポット</a></li>
           <li><a href="access.html" class="nav__link">アクセス</a></li>
           <li><a href="donation.html" class="nav__link">カンパのお願い</a></li>
@@ -74,7 +81,7 @@
   <main>
 
     <!-- ========== ヒーロー：キービジュアルが主役 ========== -->
-    <section class="hero">
+    <section class="hero" data-wind>
       <div class="hero__visual" aria-hidden="true">
         <picture>
           <source type="image/webp"
@@ -95,10 +102,11 @@
           <p class="eyebrow">NADA CHALLENGE 2026</p>
           <h1 class="hero__title">ともに響き合う<br>灘の心と未来の風</h1>
           <p class="hero__meta">
-            <span class="hero__date">2026.9 SUN</span>
+            <span class="hero__date">2026.9.20 SUN 11:00–16:00</span>
             <span class="hero__meta-sep" aria-hidden="true"></span>
             <span>都賀川公園</span>
           </p>
+          <p class="hero__countdown" data-countdown hidden></p>
         </div>
       </div>
     </section>
@@ -188,69 +196,9 @@
           <button class="category-filter__btn" type="button" data-filter="other" aria-pressed="false">その他</button>
         </div>
 
-        <!-- ▼▼▼ ここを編集：スポット追加（画像は img/shop/ に配置して差し替え） ▼▼▼ -->
-        <div class="spot-grid">
-          <article class="card-spot fade-in" data-category="restaurant">
-            <div class="card-spot__media">
-              <img src="img/shop/arataya.jpg" alt="串天と創作家庭料理のお店あらたや" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">飲食店</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">串天と創作家庭料理のお店あらたや</h3>
-              <span class="card-spot__tag">飲食店</span>
-            </div>
-          </article>
-          <article class="card-spot fade-in" data-category="apparel">
-            <div class="card-spot__media">
-              <img src="img/shop/emiya.jpg" alt="ゑみや洋服店" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">衣料・繊維・雑貨</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">ゑみや洋服店</h3>
-              <span class="card-spot__tag">衣料・繊維・雑貨</span>
-            </div>
-          </article>
-          <article class="card-spot fade-in" data-category="food">
-            <div class="card-spot__media">
-              <img src="img/shop/marukizu.jpg" alt="マルキーズキムラヤ" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">食品販売</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">マルキーズキムラヤ</h3>
-              <span class="card-spot__tag">食品販売</span>
-            </div>
-          </article>
-          <article class="card-spot fade-in" data-category="medical">
-            <div class="card-spot__media">
-              <img src="img/shop/kanazawa.jpg" alt="金沢病院" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">医療・福祉</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">金沢病院</h3>
-              <span class="card-spot__tag">医療・福祉</span>
-            </div>
-          </article>
-          <article class="card-spot fade-in" data-category="restaurant">
-            <div class="card-spot__media">
-              <img src="img/shop/cafe_gion.jpg" alt="Café dé Gion" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">飲食店</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">Café dé Gion</h3>
-              <span class="card-spot__tag">飲食店</span>
-            </div>
-          </article>
-          <article class="card-spot fade-in" data-category="other">
-            <div class="card-spot__media">
-              <img src="img/shop/sowelu.jpg" alt="Incubation Studio SoWelu" class="card-spot__img" loading="lazy" decoding="async">
-              <span class="card-spot__fallback">その他</span>
-            </div>
-            <div class="card-spot__body">
-              <h3 class="card-spot__name">Incubation Studio SoWelu</h3>
-              <span class="card-spot__tag">その他</span>
-            </div>
-          </article>
-        </div>
+        <!-- ▼▼▼ スポットカードは js/spots-data.js から自動描画されます（先頭6件の抜粋）。
+             店舗の追加・修正は js/spots-data.js を編集してください。 ▼▼▼ -->
+        <div class="spot-grid" data-spots-render data-spots-limit="6"></div>
         <!-- ▲▲▲ ここまで：スポットカード ▲▲▲ -->
 
         <div class="section__more fade-in">
@@ -275,12 +223,12 @@
         <!-- ▼▼▼ ここを編集：ニュース追加（新しいお知らせは一番上に） ▼▼▼ -->
         <div class="news-list fade-in">
           <article class="card-news">
-            <time class="card-news__date" datetime="2026-06-01">2026.06.01</time>
-            <p class="card-news__title">灘チャレンジ2026 開設しました</p>
+            <time class="card-news__date" datetime="2026-06-12">2026.06.12</time>
+            <p class="card-news__title">2026年9月20日（日）11:00〜16:00 開催</p>
           </article>
           <article class="card-news">
             <time class="card-news__date" datetime="2026-06-01">2026.06.01</time>
-            <p class="card-news__title">2026年度 開催決定！詳細は後日お知らせします</p>
+            <p class="card-news__title">灘チャレンジ2026 開設しました</p>
           </article>
         </div>
         <!-- ▲▲▲ ここまで：ニュース ▲▲▲ -->
@@ -298,7 +246,8 @@
         <div class="supporter-grid">
           <div class="card-supporter fade-in">
             <h3 class="card-supporter__title">協賛企業</h3>
-            <p class="card-supporter__placeholder">企業様のロゴ・名称が入ります（随時更新）</p>
+            <!-- 協賛企業は js/spots-data.js の sponsors 配列から自動描画されます -->
+            <div data-sponsors-render data-sponsors-empty="企業様のロゴ・名称が入ります（随時更新）"></div>
           </div>
           <div class="card-supporter fade-in">
             <h3 class="card-supporter__title">個人協力者</h3>
@@ -314,8 +263,8 @@
       <div class="container">
         <p class="eyebrow fade-in">CONTACT</p>
         <h2 class="section__title fade-in">お問い合わせ</h2>
-        <p class="contact__mail fade-in"><a href="mailto:nadachallenge1995@gmail.com">nadachallenge1995@gmail.com</a></p>
-        <a href="mailto:nadachallenge1995@gmail.com" class="btn btn--inverse fade-in">メールを送る</a>
+        <p class="contact__mail fade-in"><a href="mailto:nadachallenge.web@outlook.jp">nadachallenge.web@outlook.jp</a></p>
+        <a href="mailto:nadachallenge.web@outlook.jp" class="btn btn--inverse fade-in">メールを送る</a>
       </div>
     </section>
 
@@ -327,6 +276,7 @@
       <nav class="footer__nav" aria-label="フッターナビゲーション">
         <a href="index.html">ホーム</a>
         <a href="about.html">灘チャレンジって？</a>
+        <a href="parade.html">パレード</a>
         <a href="spot.html">灘区おすすめスポット</a>
         <a href="access.html">アクセス</a>
         <a href="donation.html">カンパのお願い</a>
@@ -342,11 +292,12 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07z"/></svg>
         </a>
       </div>
-      <p class="footer__contact">お問い合わせ: <a href="mailto:nadachallenge1995@gmail.com">nadachallenge1995@gmail.com</a></p>
+      <p class="footer__contact">お問い合わせ: <a href="mailto:nadachallenge.web@outlook.jp">nadachallenge.web@outlook.jp</a></p>
       <p class="footer__copyright">&copy; 2026 灘チャレンジ2026. All rights reserved.</p>
     </div>
   </footer>
 
+  <script src="js/spots-data.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

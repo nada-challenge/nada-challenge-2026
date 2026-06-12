@@ -20,7 +20,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Noto+Sans+JP:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-wind-gust>
 
   <!-- ========== ヘッダー ========== -->
   <header class="header">
@@ -34,6 +34,7 @@
         </button>
         <ul class="nav__list" id="nav-list">
           <li><a href="about.html" class="nav__link">灘チャレンジって？</a></li>
+          <li><a href="parade.html" class="nav__link">パレード</a></li>
           <li><a href="spot.html" class="nav__link">灘区おすすめスポット</a></li>
           <li><a href="access.html" class="nav__link is-current">アクセス</a></li>
           <li><a href="donation.html" class="nav__link">カンパのお願い</a></li>
@@ -70,14 +71,17 @@
           <p class="section__lead fade-in">都賀川公園（神戸市灘区）</p>
         </header>
 
-        <!-- ▼▼▼ ここを編集：Google Maps の embed URL を実際のものに差し替えてください ▼▼▼ -->
+        <!-- ▼▼▼ 会場の地図（震災記念碑「復興の誓い」付近・都賀川公園にピン） ▼▼▼ -->
         <div class="access-map fade-in">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3281.3!2d135.215!3d34.718!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6000e6f3a1234567%3A0xabcdef!2z6YO95d2K5bed5YWs5ZyS!5e0!3m2!1sja!2sjp!4v1234567890"
+            src="https://maps.google.com/maps?ll=34.71356,135.22862&amp;q=34.71356,135.22862(%E9%83%BD%E8%B3%80%E5%B7%9D%E5%85%AC%E5%9C%92)&amp;z=17&amp;output=embed"
             title="都賀川公園の地図"
             allowfullscreen
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+        <div class="section__more fade-in" style="margin-top: var(--space-3);">
+          <a href="https://www.google.com/maps/dir/?api=1&amp;destination=34.71356,135.22862" class="link-arrow" target="_blank" rel="noopener noreferrer">経路を表示（Googleマップ）<span class="link-arrow__icon" aria-hidden="true">→</span></a>
         </div>
         <!-- ▲▲▲ ここまで：地図 ▲▲▲ -->
 
@@ -89,7 +93,7 @@
             </span>
             <div>
               <p class="access-info__label">電車でお越しの方</p>
-              <p>JR摂津本山駅・阪急岡本駅 等から徒歩約10分</p>
+              <p>阪神「大石」駅から徒歩約12分<br>阪急「六甲」駅から徒歩約15分</p>
             </div>
           </div>
           <div class="access-info__item fade-in">
@@ -118,6 +122,7 @@
       <nav class="footer__nav" aria-label="フッターナビゲーション">
         <a href="index.html">ホーム</a>
         <a href="about.html">灘チャレンジって？</a>
+        <a href="parade.html">パレード</a>
         <a href="spot.html">灘区おすすめスポット</a>
         <a href="access.html">アクセス</a>
         <a href="donation.html">カンパのお願い</a>
@@ -133,11 +138,12 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.09 24 18.1 24 12.07z"/></svg>
         </a>
       </div>
-      <p class="footer__contact">お問い合わせ: <a href="mailto:nadachallenge1995@gmail.com">nadachallenge1995@gmail.com</a></p>
+      <p class="footer__contact">お問い合わせ: <a href="mailto:nadachallenge.web@outlook.jp">nadachallenge.web@outlook.jp</a></p>
       <p class="footer__copyright">&copy; 2026 灘チャレンジ2026. All rights reserved.</p>
     </div>
   </footer>
 
+  <script src="js/spots-data.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
