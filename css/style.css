@@ -1282,3 +1282,15 @@ button {
     grid-template-columns: 1fr;
   }
 }
+/* === スポットカードのリンク化（main.js） === */
+.card-spot__link { display: block; color: inherit; text-decoration: none; }
+.card-spot__link:focus-visible { outline: 2px solid var(--color-cerulean); outline-offset: 3px; border-radius: 4px; }
+@media (hover: hover) {
+  .card-spot__link:hover .card-spot__name { text-decoration: underline; text-underline-offset: 3px; }
+}
+
+/* === 詳細ページ 店舗情報リスト（spot-detail.js） === */
+.spot-info__dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5em 1em; margin: 0; }
+.spot-info__dt { font-weight: 500; color: var(--color-deep-blue, #1b3a5b); white-space: nowrap; }
+.spot-info__dd { margin: 0; }
+.spot-info__dd a { color: var(--color-cerulean, #2e7cd6); word-break: break-all; }
