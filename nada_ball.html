@@ -64,11 +64,18 @@
     <div class="overlay" id="startOverlay">
       <h1>景品ボールあて</h1>
       <div class="timeofday" id="todLabel"></div>
-      <p>ボールを<b>引っぱって、矢印のむき</b>をきめる。<br>はなすと、その方向へ<b>まっすぐ飛ぶ！</b><br>たまは <b>景品の数だけ</b>。ぜんぶ当てたら満点！<br>おくほどレア＝高とくてん。<br>一番おくの <b>ダイヤモンド</b> は うごくよ！</p>
+      <p>ボールを<b>引っぱって、矢印のむき</b>をきめる。<br>はなすと、その方向へ<b>まっすぐ飛ぶ！</b><br>たまは <b>景品の数だけ</b>。ぜんぶ当てたら<b>Perfect!</b><br>おくほどレア＝高とくてん。一番おくの <b>ダイヤモンド</b> はうごくよ！<br>満点なら…<b>特賞ぞろいのExtra Stage</b>へ！</p>
       <button class="btn" id="startBtn">はじめる</button>
     </div>
+    <div class="overlay hidden" id="perfectOverlay">
+      <h1 style="color:#ffd23a;font-size:40px;letter-spacing:0.04em;">Perfect!</h1>
+      <div class="sub-result">ぜんぶ当てた！満点だ！</div>
+      <p style="color:#ffe9a8;">特賞だらけの <b>Extra Stage</b> に挑戦できる！<br>剣・お姫様人形・トロフィー・宝箱… ぜんぶ動くぞ。</p>
+      <button class="btn" id="extraBtn" style="background:#e0a020;">Extra Stageへ挑戦！</button>
+      <button class="btn" id="skipExtraBtn" style="background:rgba(255,255,255,0.14);margin-top:2px;padding:9px 24px;font-size:14px;">ここで終わる</button>
+    </div>
     <div class="overlay hidden" id="resultOverlay">
-      <h2>おわり！</h2>
+      <h2 id="resultTitle">おわり！</h2>
       <div class="big-score" id="finalScore">0</div>
       <div class="sub-result" id="knockResult">とった景品：0</div>
       <div class="new-best hidden" id="newBest">★ ベストこうしん！</div>
@@ -102,6 +109,15 @@
     { y: 332, pts: 20, r: 26, nmin: 2, nmax: 3, pool: ["car", "robot", "ball", "flower"] },
     { y: 236, pts: 30, r: 23, nmin: 1, nmax: 2, pool: ["crown", "cake", "heart", "star"] },
     { y: 144, pts: 50, r: 20, nmin: 1, nmax: 2, pool: ["diamond", "ring"] },
+  ];
+
+  // Extra Stage：豪華特賞5個（全部うごく高難度）。剣/お姫様人形/豪華熊/トロフィー/宝箱。
+  const EXTRA_PRIZES = [
+    { kind: "sword",    pts: 100, r: 24, y: 180 },
+    { kind: "princess", pts: 120, r: 24, y: 250 },
+    { kind: "luxbear",  pts: 100, r: 26, y: 330 },
+    { kind: "trophy",   pts: 150, r: 23, y: 200 },
+    { kind: "chest",    pts: 200, r: 25, y: 400 },
   ];
 
   // ===== 時間帯 =====
@@ -143,6 +159,10 @@
   let dragPos = null, flyer = null;
   let rings = [];
   let tFrame = 0, memBest = 0;
+  let stage = 1;                 // 1=通常, 2=Extra Stage
+  let fireworks = [];            // 花火（Extra Stageクリア祝福）
+  let fwTimer = 0;               // 花火打ち上げ間隔タイマー
+  const RIVER = { top: 560, bot: 612 };   // 川の帯（投擲点と棚の中間あたり・手前側）
 
   const el = {
     score: document.getElementById("score"), balls: document.getElementById("balls"),
@@ -150,6 +170,7 @@
     startOverlay: document.getElementById("startOverlay"), resultOverlay: document.getElementById("resultOverlay"),
     finalScore: document.getElementById("finalScore"), knockResult: document.getElementById("knockResult"),
     newBest: document.getElementById("newBest"), todLabel: document.getElementById("todLabel"),
+    perfectOverlay: document.getElementById("perfectOverlay"), resultTitle: document.getElementById("resultTitle"),
   };
   function loadBest() { try { return parseInt(localStorage.getItem("nada_keihin_best")) || 0; } catch (e) { return memBest; } }
   function saveBest(v) { memBest = v; try { localStorage.setItem("nada_keihin_best", v); } catch (e) {} }
@@ -205,12 +226,39 @@
     return list;
   }
 
+  // Extra Stage：豪華5景品を横に並べ、全部ゆらゆら動く高難度配置
+  function makeExtraTargets() {
+    const list = [];
+    const slots = EXTRA_PRIZES.length;
+    for (let i = 0; i < slots; i++) {
+      const p = EXTRA_PRIZES[i];
+      const baseX = (W / (slots + 1)) * (i + 1);
+      list.push({
+        x: baseX, baseX, y: p.y + rand(-6, 6), r: p.r,
+        kind: p.kind, points: p.pts,
+        down: false, fall: 0, alpha: 1, bob: rand(0, 6),
+        moving: true, amp: rand(40, 70), phase: rand(0, 6), spd: rand(0.03, 0.05),
+      });
+    }
+    return list;
+  }
+
   function resetGame() {
+    stage = 1; fireworks = [];
     targets = makeTargets();
     score = 0; ballsLeft = targets.length; gotCount = 0; streak = 0;
     dragPos = null; flyer = null; particles = []; rings = [];
     state = "idle"; updateHud();
     el.hint.textContent = "ぜんぶ当てたら満点！ねらって放とう";
+  }
+  // Extra Stageへ突入（スコアは引き継ぎ、球は景品数ぶん）
+  function startExtraStage() {
+    stage = 2; fireworks = [];
+    targets = makeExtraTargets();
+    ballsLeft = targets.length; gotCount = 0; streak = 0;
+    dragPos = null; flyer = null; particles = []; rings = [];
+    state = "idle"; updateHud();
+    el.hint.textContent = "★EXTRA★ 特賞をねらえ！ぜんぶ動くぞ";
   }
   function updateHud() { el.score.textContent = score; el.balls.textContent = ballsLeft; el.best.textContent = loadBest(); }
 
@@ -270,7 +318,13 @@
   }
   function endBall() {
     flyer = null; ballsLeft--; updateHud();
-    if (ballsLeft <= 0) setTimeout(gameOver, 600);
+    const allDown = gotCount >= targets.length;
+    if (allDown) {
+      // 全部倒した
+      if (stage === 1) { setTimeout(showPerfect, 500); return; }      // → Extra Stage誘導
+      else { setTimeout(function () { gameOver(true); }, 500); return; } // Extraクリア → 祝福
+    }
+    if (ballsLeft <= 0) setTimeout(function () { gameOver(false); }, 600);
     else { state = "idle"; el.hint.textContent = "ボールを引っぱって、ねらいを定めよう"; }
   }
   function flyerHitCheck() {
@@ -287,6 +341,9 @@
     if (kind === "heart") return "#ff7aa0";
     if (kind === "flower") return "#ff8ec2";
     if (kind === "star" || kind === "crown" || kind === "cake") return "#ffd23a";
+    if (kind === "sword" || kind === "trophy" || kind === "chest") return "#ffe26a";
+    if (kind === "princess") return "#ff9ec8";
+    if (kind === "luxbear") return "#ffce3a";
     return "#ffd56a";
   }
   function spawnRing(x, y, color) { rings.push({ x, y, r: 8, maxR: 66, life: 1, color }); }
@@ -304,6 +361,60 @@
     state = "flying-done"; setTimeout(endBall, 420);
   }
   function missBall() { streak = 0; el.hint.textContent = "おしい！"; state = "flying-done"; setTimeout(endBall, 300); }
+
+  // ===== 花火（Extraクリア祝福。手前→奥へ打ち上がる）=====
+  const FW_COLORS = ["#ffd23a", "#ff5a7a", "#7fd4ff", "#6ee0b0", "#ff8ec2", "#ffe49a", "#bdf0ff"];
+  function launchFireworks() {
+    fireworks = []; fwTimer = 0; state = "celebrate";
+  }
+  function spawnRocket() {
+    // 手前（下のほう）から発射、奥（上）の任意の高さで炸裂
+    const sx = rand(W * 0.2, W * 0.8);
+    const startY = rand(H - 90, H - 40);          // 手前から
+    const burstY = rand(70, 300);                 // 奥（背景スカイライン寄り）で開く
+    const col = pick(FW_COLORS);
+    fireworks.push({ type: "rocket", x: sx, y: startY, bx: sx + rand(-40, 40), by: burstY, col, t: 0 });
+  }
+  function burst(x, y, col) {
+    const n = 26 + Math.floor(rand(0, 12));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * PI2 + rand(-0.1, 0.1);
+      const sp = rand(1.6, 4.2);
+      fireworks.push({ type: "spark", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, col, life: 1, decay: rand(0.012, 0.022) });
+    }
+  }
+  function updateFireworks() {
+    fwTimer--;
+    if (fwTimer <= 0 && fireworks.filter(f => f.type === "rocket").length < 4) {
+      spawnRocket(); fwTimer = Math.floor(rand(14, 30));
+    }
+    for (let i = fireworks.length - 1; i >= 0; i--) {
+      const f = fireworks[i];
+      if (f.type === "rocket") {
+        f.t += 0.035;
+        f.x = f.x + (f.bx - f.x) * 0.08;
+        f.y = f.y + (f.by - f.y) * 0.08;
+        if (Math.abs(f.y - f.by) < 6) { burst(f.x, f.y, f.col); fireworks.splice(i, 1); }
+      } else {
+        f.x += f.vx; f.y += f.vy; f.vy += 0.04; f.vx *= 0.985; f.vy *= 0.985;
+        f.life -= f.decay;
+        if (f.life <= 0) fireworks.splice(i, 1);
+      }
+    }
+  }
+  function drawFireworks() {
+    for (const f of fireworks) {
+      if (f.type === "rocket") {
+        ctx.globalAlpha = 0.9; ctx.fillStyle = f.col;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 2.5, 0, PI2); ctx.fill();
+        ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(f.x, f.y + 6, 1.6, 0, PI2); ctx.fill();
+      } else {
+        ctx.globalAlpha = Math.max(f.life, 0); ctx.fillStyle = f.col;
+        ctx.beginPath(); ctx.arc(f.x, f.y, 2.2 * f.life + 0.5, 0, PI2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
 
   function update() {
     tFrame++;
@@ -327,14 +438,34 @@
     particles = particles.filter(p => p.life > 0);
     for (const rg of rings) { rg.r += (rg.maxR - rg.r) * 0.16; rg.life -= 0.045; }
     rings = rings.filter(rg => rg.life > 0);
+    if (state === "celebrate") updateFireworks();
   }
 
-  function gameOver() {
+  // 第1ステージ満点 → Perfect表示（花火はまだ上げない）
+  function showPerfect() {
+    state = "perfect";
+    el.perfectOverlay.classList.remove("hidden");
+    // ベスト更新は念のためここでも反映（Extraを飛ばす人向け）
+    if (score > loadBest()) { saveBest(score); }
+    updateHud();
+  }
+
+  function gameOver(celebrate) {
     state = "over";
     const best = loadBest(); let isNew = false;
     if (score > best) { saveBest(score); isNew = true; }
+    const perfect = gotCount === targets.length;
+    if (celebrate) {
+      // Extra Stageクリア祝福
+      el.resultTitle.textContent = perfect ? "Congratulations!" : "Extra クリア！";
+      el.resultTitle.style.color = "#ffd23a";
+      launchFireworks();       // 花火スタート
+    } else {
+      el.resultTitle.textContent = "おわり！";
+      el.resultTitle.style.color = "";
+    }
     el.finalScore.textContent = score;
-    el.knockResult.textContent = (gotCount === targets.length ? "★満点★ " : "") + "とった景品：" + gotCount + " / " + targets.length;
+    el.knockResult.textContent = (perfect ? "★満点★ " : "") + "とった景品：" + gotCount + " / " + targets.length;
     el.newBest.classList.toggle("hidden", !isNew);
     el.resultOverlay.classList.remove("hidden");
     updateHud();
@@ -344,7 +475,8 @@
   function draw() {
     ctx.fillStyle = "#0d1322"; ctx.fillRect(0, 0, W, H);
     drawSky(); drawTown(); drawPortTower();
-    drawBoothBack(); drawShelves();
+    drawBoothBack();
+    if (stage === 1) drawShelves(); else drawExtraStand();
     const sorted = targets.slice().sort((a, b) => a.y - b.y);
     for (const t of sorted) drawPrize(t);
     if (flyer) drawFlyer();
@@ -361,6 +493,7 @@
     if (state === "aiming" && dragPos) drawAimPreview();
     drawHandBall();
     drawTopDecor();
+    if (fireworks.length || state === "celebrate") drawFireworks();
   }
 
   function drawSky() {
@@ -399,10 +532,10 @@
     const red = lit ? "#ff3b2e" : "#c0392b";
     ctx.save();
     if (lit) {
-      ctx.globalAlpha = 0.16 + 0.05 * Math.sin(tFrame * 0.05);
-      const gg = ctx.createRadialGradient(cx, (topY + baseY) / 2, 4, cx, (topY + baseY) / 2, 60);
-      gg.addColorStop(0, "#ff6a3a"); gg.addColorStop(1, "rgba(255,106,58,0)");
-      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(cx, (topY + baseY) / 2, 60, 0, PI2); ctx.fill();
+      ctx.globalAlpha = 0.24 + 0.07 * Math.sin(tFrame * 0.05);
+      const gg = ctx.createRadialGradient(cx, (topY + baseY) / 2, 4, cx, (topY + baseY) / 2, 78);
+      gg.addColorStop(0, "#ff8a4a"); gg.addColorStop(0.5, "rgba(255,120,60,0.4)"); gg.addColorStop(1, "rgba(255,106,58,0)");
+      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(cx, (topY + baseY) / 2, 78, 0, PI2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     function ep(sign, p) {
@@ -459,6 +592,25 @@
     }
   }
 
+  // Extra Stage：各特賞の足元に金縁の台座を置く特設ステージ
+  function drawExtraStand() {
+    for (const t of targets) {
+      if (t.alpha <= 0) continue;
+      const py = t.y + t.r + 6;   // 台座は景品の足元
+      const cx = t.x, hw = t.r * 1.1;
+      // 落ち影
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(cx, py + 8, hw * 1.1, 6, 0, 0, PI2); ctx.fill();
+      // 台座（赤×金の特設台）
+      const g = ctx.createLinearGradient(0, py - 4, 0, py + 14);
+      g.addColorStop(0, "#9a2530"); g.addColorStop(1, "#5a121a");
+      ctx.fillStyle = g; roundRect(cx - hw, py, hw * 2, 14, 4); ctx.fill();
+      ctx.fillStyle = "#ffce3a"; ctx.fillRect(cx - hw, py, hw * 2, 2.5);          // 金縁
+      ctx.fillStyle = "rgba(255,230,120,0.25)"; ctx.fillRect(cx - hw, py + 11, hw * 2, 2);
+    }
+    // 上部に「特賞」感の帯
+    ctx.fillStyle = "rgba(255,210,58,0.10)"; ctx.fillRect(18, BOOTH_TOP, W - 36, 4);
+  }
+
   // ===== 景品 =====
   function drawPrize(t) {
     if (t.alpha <= 0) return;
@@ -492,6 +644,11 @@
       case "heart": drawHeart(r); break;
       case "star": drawStar(r); break;
       case "ring": drawRing(r); break;
+      case "sword": drawSword(r); break;
+      case "princess": drawPrincess(r); break;
+      case "luxbear": drawLuxBear(r); break;
+      case "trophy": drawTrophy(r); break;
+      case "chest": drawChest(r); break;
       default: drawDiamond(r);
     }
     ctx.restore();
@@ -638,6 +795,105 @@
     ctx.globalAlpha = sp; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-r * 0.25, -r * 0.35, r * 0.12, 0, PI2); ctx.fill(); ctx.globalAlpha = 1;
   }
 
+  // ===== Extra Stage 豪華景品 =====
+  function drawSword(r) {
+    // 刃
+    const g = ctx.createLinearGradient(-r * 0.18, 0, r * 0.18, 0);
+    g.addColorStop(0, "#cfe0ee"); g.addColorStop(0.5, "#ffffff"); g.addColorStop(1, "#9fb4c8");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(0, -r * 1.05); ctx.lineTo(r * 0.16, -r * 0.85); ctx.lineTo(r * 0.16, r * 0.18); ctx.lineTo(-r * 0.16, r * 0.18); ctx.lineTo(-r * 0.16, -r * 0.85); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(120,150,180,0.6)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -r * 0.95); ctx.lineTo(0, r * 0.12); ctx.stroke();
+    // 鍔
+    ctx.fillStyle = "#ffce3a"; roundRect(-r * 0.5, r * 0.16, r, r * 0.16, 3); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * 0.5, r * 0.24, r * 0.1, 0, PI2); ctx.arc(r * 0.5, r * 0.24, r * 0.1, 0, PI2); ctx.fill();
+    // 柄
+    ctx.fillStyle = "#8a4a2a"; roundRect(-r * 0.1, r * 0.32, r * 0.2, r * 0.5, 3); ctx.fill();
+    ctx.fillStyle = "#e0533a"; ctx.beginPath(); ctx.arc(0, r * 0.88, r * 0.13, 0, PI2); ctx.fill();
+    // きらめき
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(tFrame * 0.12); ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(r * 0.05, -r * 0.55, r * 0.08, 0, PI2); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function drawPrincess(r) {
+    // ドレス
+    ctx.fillStyle = "#ff9ec8";
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.1); ctx.lineTo(r * 0.72, r * 0.85); ctx.lineTo(-r * 0.72, r * 0.85); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffc0dd"; ctx.beginPath(); ctx.moveTo(0, r * 0.2); ctx.lineTo(r * 0.4, r * 0.85); ctx.lineTo(-r * 0.4, r * 0.85); ctx.closePath(); ctx.fill();
+    // 胴
+    ctx.fillStyle = "#e87bb0"; roundRect(-r * 0.2, -r * 0.28, r * 0.4, r * 0.36, 4); ctx.fill();
+    // 顔
+    ctx.fillStyle = "#ffe0cc"; ctx.beginPath(); ctx.arc(0, -r * 0.45, r * 0.26, 0, PI2); ctx.fill();
+    // 髪
+    ctx.fillStyle = "#7a4a26";
+    ctx.beginPath(); ctx.arc(0, -r * 0.5, r * 0.3, Math.PI, PI2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.26, -r * 0.36, r * 0.1, r * 0.26, 0, 0, PI2); ctx.ellipse(r * 0.26, -r * 0.36, r * 0.1, r * 0.26, 0, 0, PI2); ctx.fill();
+    // 目
+    ctx.fillStyle = "#3a2417"; ctx.beginPath(); ctx.arc(-r * 0.09, -r * 0.45, r * 0.04, 0, PI2); ctx.arc(r * 0.09, -r * 0.45, r * 0.04, 0, PI2); ctx.fill();
+    // ティアラ
+    ctx.fillStyle = "#ffd23a";
+    ctx.beginPath(); ctx.moveTo(-r * 0.22, -r * 0.66); ctx.lineTo(-r * 0.11, -r * 0.82); ctx.lineTo(0, -r * 0.66); ctx.lineTo(r * 0.11, -r * 0.82); ctx.lineTo(r * 0.22, -r * 0.66); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#7fd4ff"; ctx.beginPath(); ctx.arc(0, -r * 0.7, r * 0.04, 0, PI2); ctx.fill();
+  }
+  function drawLuxBear(r) {
+    // 通常熊の豪華版（金リボン＋王冠つき）
+    ctx.fillStyle = "#a06a3a";
+    ctx.beginPath(); ctx.arc(-r * 0.62, -r * 0.55, r * 0.3, 0, PI2); ctx.arc(r * 0.62, -r * 0.55, r * 0.3, 0, PI2); ctx.fill();
+    ctx.fillStyle = "#c8915a";
+    ctx.beginPath(); ctx.ellipse(0, r * 0.35, r * 0.68, r * 0.6, 0, 0, PI2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -r * 0.25, r * 0.6, 0, PI2); ctx.fill();
+    ctx.fillStyle = "#f0dcc0"; ctx.beginPath(); ctx.ellipse(0, -r * 0.1, r * 0.3, r * 0.25, 0, 0, PI2); ctx.fill();
+    ctx.fillStyle = "#3a2417";
+    ctx.beginPath(); ctx.arc(-r * 0.24, -r * 0.35, r * 0.08, 0, PI2); ctx.arc(r * 0.24, -r * 0.35, r * 0.08, 0, PI2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -r * 0.12, r * 0.09, 0, PI2); ctx.fill();
+    // 金リボン
+    ctx.fillStyle = "#ffce3a";
+    ctx.beginPath(); ctx.moveTo(0, r * 0.05); ctx.lineTo(-r * 0.34, -r * 0.08); ctx.lineTo(-r * 0.34, r * 0.18); ctx.closePath();
+    ctx.moveTo(0, r * 0.05); ctx.lineTo(r * 0.34, -r * 0.08); ctx.lineTo(r * 0.34, r * 0.18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, r * 0.05, r * 0.09, 0, PI2); ctx.fill();
+    // 小さな王冠
+    ctx.fillStyle = "#ffd23a";
+    ctx.beginPath(); ctx.moveTo(-r * 0.3, -r * 0.78); ctx.lineTo(-r * 0.3, -r * 0.95); ctx.lineTo(-r * 0.12, -r * 0.85); ctx.lineTo(0, -r * 1.02); ctx.lineTo(r * 0.12, -r * 0.85); ctx.lineTo(r * 0.3, -r * 0.95); ctx.lineTo(r * 0.3, -r * 0.78); ctx.closePath(); ctx.fill();
+  }
+  function drawTrophy(r) {
+    // カップ
+    const g = ctx.createLinearGradient(-r, 0, r, 0);
+    g.addColorStop(0, "#d9a520"); g.addColorStop(0.5, "#ffe89a"); g.addColorStop(1, "#c8921a");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, -r * 0.7); ctx.lineTo(r * 0.5, -r * 0.7);
+    ctx.lineTo(r * 0.4, -r * 0.05); ctx.quadraticCurveTo(0, r * 0.3, -r * 0.4, -r * 0.05); ctx.closePath(); ctx.fill();
+    // 取っ手
+    ctx.strokeStyle = "#e0b030"; ctx.lineWidth = r * 0.1;
+    ctx.beginPath(); ctx.arc(-r * 0.5, -r * 0.45, r * 0.22, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r * 0.5, -r * 0.45, r * 0.22, Math.PI * 0.5, Math.PI * 1.5); ctx.stroke();
+    // 軸と台
+    ctx.fillStyle = "#c8921a"; ctx.fillRect(-r * 0.08, r * 0.18, r * 0.16, r * 0.3);
+    ctx.fillStyle = "#8a5a20"; roundRect(-r * 0.34, r * 0.46, r * 0.68, r * 0.2, 3); ctx.fill();
+    // 星
+    ctx.fillStyle = "#fff6c0"; ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * 0.1 : r * 0.22; const a = -Math.PI / 2 + i * Math.PI / 5; const x = Math.cos(a) * rr, y = Math.sin(a) * rr - r * 0.32; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.4 + 0.4 * Math.sin(tFrame * 0.1); ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(r * 0.22, -r * 0.5, r * 0.07, 0, PI2); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function drawChest(r) {
+    // 箱本体
+    ctx.fillStyle = "#7a4a24"; roundRect(-r * 0.78, -r * 0.05, r * 1.56, r * 0.78, 4); ctx.fill();
+    // フタ（半開き）
+    ctx.fillStyle = "#8a5630";
+    ctx.beginPath(); ctx.moveTo(-r * 0.78, -r * 0.05); ctx.quadraticCurveTo(0, -r * 0.62, r * 0.78, -r * 0.05); ctx.lineTo(r * 0.78, -r * 0.18); ctx.quadraticCurveTo(0, -r * 0.72, -r * 0.78, -r * 0.18); ctx.closePath(); ctx.fill();
+    // 金の帯と金具
+    ctx.fillStyle = "#ffce3a"; ctx.fillRect(-r * 0.78, r * 0.22, r * 1.56, r * 0.12);
+    ctx.fillStyle = "#ffe89a"; ctx.fillRect(-r * 0.1, r * 0.05, r * 0.2, r * 0.5);
+    ctx.fillStyle = "#d9a520"; ctx.beginPath(); ctx.arc(0, r * 0.3, r * 0.1, 0, PI2); ctx.fill();
+    // あふれる金貨＆光
+    ctx.fillStyle = "#ffe26a";
+    for (let i = 0; i < 5; i++) { const cx = -r * 0.5 + i * r * 0.25; ctx.beginPath(); ctx.arc(cx, -r * 0.18 + (i % 2) * r * 0.08, r * 0.11, 0, PI2); ctx.fill(); }
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(tFrame * 0.13); ctx.fillStyle = "#fffce0";
+    ctx.beginPath(); ctx.arc(0, -r * 0.28, r * 0.1, 0, PI2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * 0.35, -r * 0.3, r * 0.05, 0, PI2); ctx.arc(r * 0.4, -r * 0.26, r * 0.05, 0, PI2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
   // ===== ボール =====
   function drawBall(x, y, scale) {
     const r = BALL_R * scale;
@@ -672,8 +928,59 @@
       ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx - 2, gy - 6); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx + 2, gy - 6); ctx.stroke();
     }
+    drawRiver(lit);
     drawTree(50, FLOOR_BOT + 95, 0.9, lit);
     drawTree(W - 48, FLOOR_BOT + 125, 0.82, lit);
+  }
+
+  // ===== 川（都賀川イメージ）＋手前フェンス（水難事故防止）=====
+  function drawRiver(lit) {
+    const rt = RIVER.top, rb = RIVER.bot;
+    ctx.save();
+    // 川床（奥に向かってやや暗く）
+    const g = ctx.createLinearGradient(0, rt, 0, rb);
+    if (lit) { g.addColorStop(0, "#13314f"); g.addColorStop(0.5, "#1d4f78"); g.addColorStop(1, "#15405f"); }
+    else { g.addColorStop(0, "#3f86b8"); g.addColorStop(0.5, "#5aa6d4"); g.addColorStop(1, "#4892c4"); }
+    ctx.fillStyle = g; ctx.fillRect(0, rt, W, rb - rt);
+    // 岸のふち（奥・手前）
+    ctx.fillStyle = lit ? "#2a3a28" : "#6a7d52"; ctx.fillRect(0, rt - 4, W, 4); ctx.fillRect(0, rb, W, 4);
+    // 流れる水面のきらめき（横に流れる）
+    ctx.strokeStyle = lit ? "rgba(150,210,255,0.30)" : "rgba(255,255,255,0.45)"; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 7; i++) {
+      const ly = rt + 6 + i * ((rb - rt - 8) / 6);
+      const off = (tFrame * (1.0 + i * 0.15)) % 90;
+      ctx.beginPath();
+      for (let x = -90 + off; x < W + 20; x += 90) {
+        ctx.moveTo(x, ly); ctx.quadraticCurveTo(x + 22, ly - 2.4, x + 44, ly);
+      }
+      ctx.stroke();
+    }
+    // 夜は対岸の灯りが水面に映る
+    if (lit) {
+      for (let i = 0; i < 6; i++) {
+        const rx = (i * 113 + (tFrame * 0.6)) % W;
+        ctx.globalAlpha = 0.18 + 0.1 * Math.sin(tFrame * 0.05 + i);
+        ctx.fillStyle = "#ffd86a"; ctx.fillRect(rx, rt + 8 + (i % 3) * 12, 2, 10);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // ---- 手前フェンス（プレイヤーと川の間のガードレール）----
+    const fy = rb + 6;                 // フェンスの基準線（川の手前ふち直下）
+    const postGap = 52, postH = 26;
+    const railCol = lit ? "#9fb0c8" : "#d8e0ec";
+    const postCol = lit ? "#76859c" : "#aab6c8";
+    // 横レール2本
+    ctx.strokeStyle = railCol; ctx.lineWidth = 3.2; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(6, fy - postH + 6); ctx.lineTo(W - 6, fy - postH + 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, fy - postH * 0.45); ctx.lineTo(W - 6, fy - postH * 0.45); ctx.stroke();
+    // 支柱
+    ctx.strokeStyle = postCol; ctx.lineWidth = 4;
+    for (let x = 14; x <= W - 14; x += postGap) {
+      ctx.beginPath(); ctx.moveTo(x, fy + 4); ctx.lineTo(x, fy - postH); ctx.stroke();
+      // 支柱の頭（玉）
+      ctx.fillStyle = railCol; ctx.beginPath(); ctx.arc(x, fy - postH, 2.6, 0, PI2); ctx.fill();
+    }
+    ctx.restore();
   }
   function drawTree(cx, cyTop, sc, lit) {
     const trunkW = 18 * sc;
@@ -762,12 +1069,23 @@
   function makeStars() { const a = []; for (let i = 0; i < 40; i++) a.push({ x: Math.random() * W, y: Math.random() * (TOWN_BASE - 30), r: Math.random() * 1.3 + 0.3, tw: Math.random() * 6 }); return a; }
   function makeWindows() {
     const a = [];
-    for (const b of BUILDINGS) for (let yy = TOWN_BASE - b[2] + 5; yy < TOWN_BASE; yy += 9) for (let xx = b[0] + 4; xx < b[0] + b[1] - 4; xx += 8) if (Math.random() < 0.5) a.push({ x: xx, y: yy, p: Math.random() * 6 });
+    const litRate = TOD === "night" ? 0.72 : 0.5;
+    for (const b of BUILDINGS) for (let yy = TOWN_BASE - b[2] + 5; yy < TOWN_BASE; yy += 9) for (let xx = b[0] + 4; xx < b[0] + b[1] - 4; xx += 8) if (Math.random() < litRate) a.push({ x: xx, y: yy, p: Math.random() * 6 });
     return a;
   }
 
   document.getElementById("startBtn").addEventListener("click", function () { el.startOverlay.classList.add("hidden"); resetGame(); });
   document.getElementById("retryBtn").addEventListener("click", function () { el.resultOverlay.classList.add("hidden"); resetGame(); });
+  document.getElementById("extraBtn").addEventListener("click", function () { el.perfectOverlay.classList.add("hidden"); startExtraStage(); });
+  document.getElementById("skipExtraBtn").addEventListener("click", function () {
+    el.perfectOverlay.classList.add("hidden");
+    // Extraを受けず、第1ステージ満点の結果をそのまま表示
+    el.resultTitle.textContent = "Perfect!"; el.resultTitle.style.color = "#ffd23a";
+    el.finalScore.textContent = score;
+    el.knockResult.textContent = "★満点★ とった景品：" + gotCount + " / " + targets.length;
+    el.newBest.classList.toggle("hidden", !(score >= loadBest()));
+    state = "over"; el.resultOverlay.classList.remove("hidden");
+  });
 
   el.todLabel.textContent = "いまは「" + TOD_LABEL + "」の灘チャレンジ";
   stars = makeStars(); townWindows = makeWindows();
