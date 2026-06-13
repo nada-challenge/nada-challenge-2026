@@ -47,15 +47,17 @@
         card.className = 'card-spot fade-in';
         card.setAttribute('data-category', spot.category);
         card.innerHTML =
-          '<div class="card-spot__media">' +
-            '<img src="img/shop/' + spot.slug + '.jpg" alt="" class="card-spot__img" loading="lazy" decoding="async">' +
-            '<span class="card-spot__fallback"></span>' +
-          '</div>' +
-          '<div class="card-spot__body">' +
-            '<' + nameTag + ' class="card-spot__name"></' + nameTag + '>' +
-            '<span class="card-spot__tag"></span>' +
-            (withDesc ? '<p class="card-spot__desc"></p>' : '') +
-          '</div>';
+          '<a class="card-spot__link" href="spot-detail.html?slug=' + encodeURIComponent(spot.slug) + '">' +
+            '<div class="card-spot__media">' +
+              '<img src="img/shop/' + spot.slug + '.jpg" alt="" class="card-spot__img" loading="lazy" decoding="async">' +
+              '<span class="card-spot__fallback"></span>' +
+            '</div>' +
+            '<div class="card-spot__body">' +
+              '<' + nameTag + ' class="card-spot__name"></' + nameTag + '>' +
+              '<span class="card-spot__tag"></span>' +
+              (withDesc ? '<p class="card-spot__desc"></p>' : '') +
+            '</div>' +
+          '</a>';
         /* テキストは textContent で安全に流し込む */
         card.querySelector('.card-spot__img').alt = spot.name;
         card.querySelector('.card-spot__fallback').textContent = label;
