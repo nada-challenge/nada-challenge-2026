@@ -7,7 +7,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
-    height: 100%; background: #0e1422;
+    height: 100%; background: #4682b4;
     font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
     color: #eef3ff; overscroll-behavior: none;
   }
@@ -270,7 +270,7 @@
   }
 
   function resetGame() {
-    stage = 1; fireworks = [];
+    stage = 1; fireworks = []; fwCtx.clearRect(0, 0, W, H);
     targets = makeTargets();
     score = 0; ballsLeft = targets.length; gotCount = 0; streak = 0;
     dragPos = null; flyer = null; particles = []; rings = [];
@@ -278,7 +278,7 @@
     el.hint.textContent = "ぜんぶ当てたら満点！ねらって放とう";
   }
   function startExtraStage() {
-    stage = 2; fireworks = [];
+    stage = 2; fireworks = []; fwCtx.clearRect(0, 0, W, H);
     targets = makeExtraTargets();
     ballsLeft = targets.length; gotCount = 0; streak = 0;
     dragPos = null; flyer = null; particles = []; rings = [];
@@ -424,6 +424,8 @@
     }
   }
   // ★修正4: 花火はfwCtxに描画（overlayの上に表示される）
+  // ★バグ修正: 常に呼ぶ。fireworksが空のときはclearRectだけして抜けるので、
+  //   celebrate終了後に画面に花火が残らない。
   function drawFireworks() {
     fwCtx.clearRect(0, 0, W, H);
     if (!fireworks.length) return;
@@ -531,7 +533,8 @@
     drawHandBall();
     drawTopDecor();
     // ★修正4: メインcanvasでは花火を描かない → drawFireworks()はfwCanvasへ
-    if (state === "celebrate") drawFireworks();
+    // ★バグ修正: 常にfwCanvasを更新（celebrate終了時に確実にクリアされ、花火が残らない）
+    drawFireworks();
   }
 
   function drawSky() {
