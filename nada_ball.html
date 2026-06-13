@@ -30,10 +30,16 @@
     touch-action: none;
   }
   canvas { display: block; width: 100%; height: 100%; }
+  /* ★修正4: fireworks-canvas を overlayの上に重ねる */
+  #fwCanvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 20;
+  }
   .overlay {
     position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center;
     background: rgba(8,12,24,0.86); backdrop-filter: blur(3px); padding: 28px; gap: 14px;
+    z-index: 10;
   }
   .overlay.hidden { display: none; }
   .overlay h1 { font-size: 27px; font-weight: 700; }
@@ -61,13 +67,14 @@
   </div>
   <div class="stage">
     <canvas id="game"></canvas>
+    <!-- ★修正4: 花火専用canvas（overlayより上のz-index） -->
+    <canvas id="fwCanvas"></canvas>
     <div class="overlay" id="startOverlay">
       <h1>景品ボールあて</h1>
       <div class="timeofday" id="todLabel"></div>
       <p>ボールを<b>引っぱって、矢印のむき</b>をきめる。<br>はなすと、その方向へ<b>まっすぐ飛ぶ！</b><br>たまは <b>景品の数だけ</b>。ぜんぶ当てたら<b>Perfect!</b><br>おくほどレア＝高とくてん。一番おくの <b>ダイヤモンド</b> はうごくよ！</p>
       <button class="btn" id="startBtn">はじめる</button>
     </div>
-    <!-- perfectOverlay：Extra Stage告知なし・隠し要素として自動遷移 -->
     <div class="overlay hidden" id="perfectOverlay">
       <h1 style="color:#ffd23a;font-size:40px;letter-spacing:0.04em;">Perfect!</h1>
       <div class="sub-result">ぜんぶ当てた！満点だ！</div>
@@ -109,11 +116,11 @@
   ];
 
   const EXTRA_PRIZES = [
-    { kind: "sword",    pts: 100, r: 24, y: 180 },
-    { kind: "princess", pts: 120, r: 24, y: 250 },
-    { kind: "luxbear",  pts: 100, r: 26, y: 330 },
-    { kind: "trophy",   pts: 150, r: 23, y: 200 },
-    { kind: "chest",    pts: 200, r: 25, y: 400 },
+    { kind: "sword",    pts: 100, r: 24 },
+    { kind: "princess", pts: 120, r: 24 },
+    { kind: "luxbear",  pts: 100, r: 26 },
+    { kind: "trophy",   pts: 150, r: 23 },
+    { kind: "chest",    pts: 200, r: 25 },
   ];
 
   // ===== 時間帯 =====
@@ -139,12 +146,19 @@
   // ===== キャンバス =====
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+  // ★修正4: 花火専用canvas
+  const fwCanvas = document.getElementById("fwCanvas");
+  const fwCtx = fwCanvas.getContext("2d");
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+    fwCanvas.width = canvas.width;
+    fwCanvas.height = canvas.height;
+    fwCtx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   }
   window.addEventListener("resize", resize);
 
@@ -220,17 +234,36 @@
     return list;
   }
 
+  // Extra Stage景品の配置をランダム化＋難易度強化
   function makeExtraTargets() {
     const list = [];
-    const slots = EXTRA_PRIZES.length;
-    for (let i = 0; i < slots; i++) {
-      const p = EXTRA_PRIZES[i];
-      const baseX = (W / (slots + 1)) * (i + 1);
+    const shuffled = EXTRA_PRIZES.slice().sort(() => Math.random() - 0.5);
+    const yOptions = [150, 210, 270, 330, 400];
+    const shuffledY = yOptions.slice().sort(() => Math.random() - 0.5);
+    const usedX = [];
+    // Y座標で並べ替えてランク付け（奥=小さいY=高速）
+    const withY = shuffled.map((p, i) => ({ p, y: shuffledY[i] }));
+    withY.sort((a, b) => a.y - b.y); // y昇順＝奥ほど速い
+    const AMP_MIN  = [110, 88, 68, 52, 38];
+    const AMP_MAX  = [145, 110, 88, 70, 54];
+    const SPD_MIN  = [0.058, 0.045, 0.036, 0.028, 0.022];
+    const SPD_MAX  = [0.078, 0.062, 0.050, 0.040, 0.032];
+    for (let i = 0; i < withY.length; i++) {
+      const { p, y: baseYBase } = withY[i];
+      let x, tries = 0;
+      do {
+        x = rand(80, W - 80);
+        tries++;
+      } while (usedX.some(px => Math.abs(px - x) < 110) && tries < 30);
+      usedX.push(x);
       list.push({
-        x: baseX, baseX, y: p.y + rand(-6, 6), r: p.r,
+        x, baseX: x, y: baseYBase + rand(-10, 10), r: p.r,
         kind: p.kind, points: p.pts,
         down: false, fall: 0, alpha: 1, bob: rand(0, 6),
-        moving: true, amp: rand(40, 70), phase: rand(0, 6), spd: rand(0.03, 0.05),
+        moving: true,
+        amp: rand(AMP_MIN[i], AMP_MAX[i]),
+        phase: rand(0, 6),
+        spd: rand(SPD_MIN[i], SPD_MAX[i]),
       });
     }
     return list;
@@ -390,18 +423,21 @@
       }
     }
   }
+  // ★修正4: 花火はfwCtxに描画（overlayの上に表示される）
   function drawFireworks() {
+    fwCtx.clearRect(0, 0, W, H);
+    if (!fireworks.length) return;
     for (const f of fireworks) {
       if (f.type === "rocket") {
-        ctx.globalAlpha = 0.9; ctx.fillStyle = f.col;
-        ctx.beginPath(); ctx.arc(f.x, f.y, 2.5, 0, PI2); ctx.fill();
-        ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(f.x, f.y + 6, 1.6, 0, PI2); ctx.fill();
+        fwCtx.globalAlpha = 0.9; fwCtx.fillStyle = f.col;
+        fwCtx.beginPath(); fwCtx.arc(f.x, f.y, 2.5, 0, PI2); fwCtx.fill();
+        fwCtx.globalAlpha = 0.35; fwCtx.beginPath(); fwCtx.arc(f.x, f.y + 6, 1.6, 0, PI2); fwCtx.fill();
       } else {
-        ctx.globalAlpha = Math.max(f.life, 0); ctx.fillStyle = f.col;
-        ctx.beginPath(); ctx.arc(f.x, f.y, 2.2 * f.life + 0.5, 0, PI2); ctx.fill();
+        fwCtx.globalAlpha = Math.max(f.life, 0); fwCtx.fillStyle = f.col;
+        fwCtx.beginPath(); fwCtx.arc(f.x, f.y, 2.2 * f.life + 0.5, 0, PI2); fwCtx.fill();
       }
     }
-    ctx.globalAlpha = 1;
+    fwCtx.globalAlpha = 1;
   }
 
   function update() {
@@ -429,7 +465,6 @@
     if (state === "celebrate") updateFireworks();
   }
 
-  // ===== Perfect → 2秒後に自動でExtra Stageへ（告知なし・隠し要素）=====
   function showPerfect() {
     state = "perfect";
     el.perfectOverlay.classList.remove("hidden");
@@ -437,7 +472,19 @@
     updateHud();
     setTimeout(function () {
       el.perfectOverlay.classList.add("hidden");
-      startExtraStage();
+      if (Math.random() < 1 / 3) {
+        startExtraStage();
+      } else {
+        el.resultTitle.textContent = "Perfect！おわり！";
+        el.resultTitle.style.color = "#ffd23a";
+        const best = loadBest(); let isNew = false;
+        if (score > best) { saveBest(score); isNew = true; }
+        el.finalScore.textContent = score;
+        el.knockResult.textContent = "★満点★ とった景品：" + targets.length + " / " + targets.length;
+        el.newBest.classList.toggle("hidden", !isNew);
+        el.resultOverlay.classList.remove("hidden");
+        state = "over";
+      }
     }, 2000);
   }
 
@@ -483,7 +530,8 @@
     if (state === "aiming" && dragPos) drawAimPreview();
     drawHandBall();
     drawTopDecor();
-    if (fireworks.length || state === "celebrate") drawFireworks();
+    // ★修正4: メインcanvasでは花火を描かない → drawFireworks()はfwCanvasへ
+    if (state === "celebrate") drawFireworks();
   }
 
   function drawSky() {
@@ -498,6 +546,78 @@
       }
       ctx.globalAlpha = 1;
     }
+
+    // ★修正2: 六甲山を背景に追加（ビル群の後ろ、空の下部）
+    drawRokkosan();
+  }
+
+  // ★修正2: 六甲山の描画
+  function drawRokkosan() {
+    const lit = PALETTE.townLit;
+    // 山の色（時間帯で変化）
+    const mtColor = {
+      morning: { base: "#7a9a6a", dark: "#5a7a4a", shadow: "#4a6a3a" },
+      day:     { base: "#6a9455", dark: "#4e7a3a", shadow: "#3d6530" },
+      evening: { base: "#4a4a5a", dark: "#333345", shadow: "#282835" },
+      night:   { base: "#1e2535", dark: "#161d28", shadow: "#10151e" },
+    }[TOD];
+
+    ctx.save();
+    // 奥の山（右側・明るめ）
+    ctx.fillStyle = mtColor.shadow;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.28, TOWN_BASE + 2);
+    ctx.quadraticCurveTo(W * 0.38, TOWN_BASE - 48, W * 0.48, TOWN_BASE - 22);
+    ctx.quadraticCurveTo(W * 0.55, TOWN_BASE - 36, W * 0.64, TOWN_BASE - 14);
+    ctx.quadraticCurveTo(W * 0.72, TOWN_BASE - 28, W * 0.82, TOWN_BASE + 2);
+    ctx.lineTo(W * 0.28, TOWN_BASE + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // 手前の山（メイン・中央）
+    ctx.fillStyle = mtColor.dark;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.22, TOWN_BASE + 2);
+    ctx.quadraticCurveTo(W * 0.30, TOWN_BASE - 38, W * 0.40, TOWN_BASE - 56);
+    ctx.quadraticCurveTo(W * 0.50, TOWN_BASE - 68, W * 0.60, TOWN_BASE - 52);
+    ctx.quadraticCurveTo(W * 0.70, TOWN_BASE - 36, W * 0.80, TOWN_BASE - 10);
+    ctx.quadraticCurveTo(W * 0.86, TOWN_BASE + 2, W * 0.90, TOWN_BASE + 2);
+    ctx.lineTo(W * 0.22, TOWN_BASE + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // 山の稜線グラデ（立体感）
+    const mg = ctx.createLinearGradient(0, TOWN_BASE - 68, 0, TOWN_BASE + 2);
+    mg.addColorStop(0, "rgba(255,255,255,0.07)");
+    mg.addColorStop(0.4, "rgba(255,255,255,0.03)");
+    mg.addColorStop(1, "rgba(0,0,0,0.0)");
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.22, TOWN_BASE + 2);
+    ctx.quadraticCurveTo(W * 0.30, TOWN_BASE - 38, W * 0.40, TOWN_BASE - 56);
+    ctx.quadraticCurveTo(W * 0.50, TOWN_BASE - 68, W * 0.60, TOWN_BASE - 52);
+    ctx.quadraticCurveTo(W * 0.70, TOWN_BASE - 36, W * 0.80, TOWN_BASE - 10);
+    ctx.quadraticCurveTo(W * 0.86, TOWN_BASE + 2, W * 0.90, TOWN_BASE + 2);
+    ctx.lineTo(W * 0.22, TOWN_BASE + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // 夜・夕方は山に薄い緑のアクセント（樹木感）
+    if (!lit) {
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = "#3a7a30";
+      ctx.beginPath();
+      ctx.moveTo(W * 0.22, TOWN_BASE + 2);
+      ctx.quadraticCurveTo(W * 0.30, TOWN_BASE - 38, W * 0.40, TOWN_BASE - 56);
+      ctx.quadraticCurveTo(W * 0.50, TOWN_BASE - 68, W * 0.60, TOWN_BASE - 52);
+      ctx.quadraticCurveTo(W * 0.70, TOWN_BASE - 36, W * 0.80, TOWN_BASE - 10);
+      ctx.quadraticCurveTo(W * 0.86, TOWN_BASE + 2, W * 0.90, TOWN_BASE + 2);
+      ctx.lineTo(W * 0.22, TOWN_BASE + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
 
   function drawTown() {
@@ -595,7 +715,7 @@
     ctx.fillStyle = "rgba(255,210,58,0.10)"; ctx.fillRect(18, BOOTH_TOP, W - 36, 4);
   }
 
-  // ===== 景品 =====
+  // ===== 景品 =====（変更なし・省略せずそのまま）
   function drawPrize(t) {
     if (t.alpha <= 0) return;
     ctx.save();
@@ -778,8 +898,6 @@
     ctx.moveTo(0, -r); ctx.lineTo(r * 0.4, -r * 0.25); ctx.lineTo(0, r); ctx.stroke();
     ctx.globalAlpha = sp; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-r * 0.25, -r * 0.35, r * 0.12, 0, PI2); ctx.fill(); ctx.globalAlpha = 1;
   }
-
-  // ===== Extra Stage 豪華景品 =====
   function drawSword(r) {
     const g = ctx.createLinearGradient(-r * 0.18, 0, r * 0.18, 0);
     g.addColorStop(0, "#cfe0ee"); g.addColorStop(0.5, "#ffffff"); g.addColorStop(1, "#9fb4c8");
@@ -896,8 +1014,40 @@
     drawTree(W - 48, FLOOR_BOT + 125, 0.82, lit);
   }
 
+  // ★修正3: 川の描画に河川敷の道と夜だけ光る街灯を追加
   function drawRiver(lit) {
     const rt = RIVER.top, rb = RIVER.bot;
+
+    // ── 河川敷の道（川の上下に砂利道） ──
+    const pathTopY = rt - 18;
+    const pathBotY = rb + 4;
+    const pathH = 16;
+    const pathColor = lit ? "#2a3228" : "#8a9068";
+    const pathColorBot = lit ? "#282e26" : "#7e8460";
+
+    // 上側の道
+    ctx.fillStyle = pathColor;
+    ctx.fillRect(0, pathTopY, W, pathH);
+    // 下側の道
+    ctx.fillStyle = pathColorBot;
+    ctx.fillRect(0, pathBotY, W, pathH);
+
+    // 道の路面テクスチャ（細かい粒）
+    ctx.fillStyle = lit ? "rgba(200,220,180,0.06)" : "rgba(255,255,220,0.10)";
+    for (let i = 0; i < 40; i++) {
+      const tx = (i * 67 + 13) % W;
+      ctx.fillRect(tx, pathTopY + 3 + (i % 5) * 2.2, 2, 1);
+      ctx.fillRect(tx + 15, pathBotY + 3 + (i % 4) * 2.5, 2, 1);
+    }
+
+    // 道の縁石（白線）
+    ctx.strokeStyle = lit ? "rgba(220,230,200,0.22)" : "rgba(255,255,240,0.35)";
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([14, 8]);
+    ctx.beginPath(); ctx.moveTo(0, pathTopY + pathH - 2); ctx.lineTo(W, pathTopY + pathH - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, pathBotY + 2); ctx.lineTo(W, pathBotY + 2); ctx.stroke();
+    ctx.setLineDash([]);
+
     ctx.save();
     const g = ctx.createLinearGradient(0, rt, 0, rb);
     if (lit) { g.addColorStop(0, "#13314f"); g.addColorStop(0.5, "#1d4f78"); g.addColorStop(1, "#15405f"); }
@@ -922,6 +1072,8 @@
       }
       ctx.globalAlpha = 1;
     }
+    ctx.restore();
+
     const fy = rb + 6;
     const postGap = 52, postH = 26;
     const railCol = lit ? "#9fb0c8" : "#d8e0ec";
@@ -934,8 +1086,74 @@
       ctx.beginPath(); ctx.moveTo(x, fy + 4); ctx.lineTo(x, fy - postH); ctx.stroke();
       ctx.fillStyle = railCol; ctx.beginPath(); ctx.arc(x, fy - postH, 2.6, 0, PI2); ctx.fill();
     }
-    ctx.restore();
+
+    // ★修正3: 街灯（夜・夕方だけ点灯）
+    const lampXs = [W * 0.12, W * 0.38, W * 0.62, W * 0.88];
+    for (const lx of lampXs) {
+      drawStreetLamp(lx, pathTopY, lit);
+    }
   }
+
+  // ★修正3: 街灯の描画関数
+  function drawStreetLamp(x, baseY, lit) {
+    const poleH = 38;
+    const poleTop = baseY - poleH;
+
+    // ポール
+    ctx.strokeStyle = lit ? "#8090a8" : "#a0aab8";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.lineTo(x, poleTop + 6);
+    ctx.stroke();
+
+    // アーム（横に伸びる部分）
+    ctx.beginPath();
+    ctx.moveTo(x, poleTop + 6);
+    ctx.quadraticCurveTo(x + 10, poleTop - 2, x + 16, poleTop - 4);
+    ctx.stroke();
+
+    // 灯体
+    ctx.fillStyle = lit ? "#505a6a" : "#707888";
+    ctx.beginPath();
+    ctx.ellipse(x + 16, poleTop - 4, 7, 4, 0, 0, PI2);
+    ctx.fill();
+
+    // 夜・夕方だけ光る
+    if (lit) {
+      // 光のグロー
+      const glowR = 28 + 6 * Math.sin(tFrame * 0.06);
+      ctx.globalAlpha = 0.18 + 0.06 * Math.sin(tFrame * 0.07);
+      const glowG = ctx.createRadialGradient(x + 16, poleTop, 2, x + 16, poleTop + 12, glowR);
+      glowG.addColorStop(0, "#ffe8a0");
+      glowG.addColorStop(0.4, "rgba(255,220,100,0.4)");
+      glowG.addColorStop(1, "rgba(255,200,80,0)");
+      ctx.fillStyle = glowG;
+      ctx.beginPath();
+      ctx.arc(x + 16, poleTop + 12, glowR, 0, PI2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // 灯の本体（明るく光る）
+      ctx.fillStyle = "#ffe8a0";
+      ctx.beginPath();
+      ctx.ellipse(x + 16, poleTop - 4, 6, 3, 0, 0, PI2);
+      ctx.fill();
+
+      // 路面への光の落ち込み
+      ctx.globalAlpha = 0.10 + 0.04 * Math.sin(tFrame * 0.05);
+      const floorG = ctx.createRadialGradient(x + 16, baseY - 2, 0, x + 16, baseY - 2, 22);
+      floorG.addColorStop(0, "rgba(255,230,140,0.6)");
+      floorG.addColorStop(1, "rgba(255,220,100,0)");
+      ctx.fillStyle = floorG;
+      ctx.beginPath();
+      ctx.ellipse(x + 16, baseY - 2, 22, 6, 0, 0, PI2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function drawTree(cx, cyTop, sc, lit) {
     const trunkW = 18 * sc;
     ctx.fillStyle = lit ? "#241710" : "#4f3219"; ctx.fillRect(cx - trunkW / 2, cyTop, trunkW, H - cyTop);
@@ -948,7 +1166,6 @@
   // ===== 照準（短い矢印＋軌道ドット）=====
   function drawAimPreview() {
     const a = aimDir();
-    // 引っ張り線（指まで）
     ctx.strokeStyle = "rgba(255,255,255,0.16)"; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
     ctx.beginPath(); ctx.moveTo(START.x, START.y); ctx.lineTo(dragPos.x, dragPos.y); ctx.stroke();
     ctx.setLineDash([]);
@@ -959,8 +1176,6 @@
     }
     const predicted = lineFirstHit(a.dx, a.dy, targets);
     const hitCol = predicted ? "#ffd56a" : "#7fb0ff";
-
-    // 短い矢印（70px・方向だけ示す）
     const ARROW_LEN = 70;
     const ax = START.x + a.dx * ARROW_LEN;
     const ay = START.y + a.dy * ARROW_LEN;
@@ -969,8 +1184,6 @@
     ctx.shadowBlur = 8;
     arrow(START.x, START.y, ax, ay, hitCol, 5);
     ctx.restore();
-
-    // 軌道ドット（矢印の先からだんだん薄くなる）
     const DOT_STEP = 18;
     const MAX_DOTS = 30;
     for (let s = 1; s <= MAX_DOTS; s++) {
@@ -996,7 +1209,6 @@
     ctx.restore();
   }
 
-  // ===== のれん（コバルト）＋提灯 =====
   function drawTopDecor() {
     ctx.fillStyle = COBALT; ctx.fillRect(0, 0, W, 30);
     ctx.fillStyle = "#eef3ff"; ctx.font = "700 17px sans-serif";
@@ -1035,7 +1247,6 @@
     return a;
   }
 
-  // ===== イベントリスナー =====
   document.getElementById("startBtn").addEventListener("click", function () {
     el.startOverlay.classList.add("hidden"); resetGame();
   });
