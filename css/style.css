@@ -1294,3 +1294,48 @@ button {
 .spot-info__dt { font-weight: 500; color: var(--color-deep-blue, #1b3a5b); white-space: nowrap; }
 .spot-info__dd { margin: 0; }
 .spot-info__dd a { color: var(--color-cerulean, #2e7cd6); word-break: break-all; }
+
+
+/* ========== あそぶセクション ========== */
+.asobu-inner {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+}
+
+.asobu-text {
+  flex: 1;
+}
+
+.asobu-btn-wrap {
+  flex-shrink: 0;
+}
+
+.asobu-link {
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.asobu-link:hover {
+  transform: scale(1.06);
+}
+
+.asobu-link:active {
+  transform: scale(0.94);
+}
+
+.asobu-img {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .asobu-inner {
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
+  }
+}
