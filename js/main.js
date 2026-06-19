@@ -629,3 +629,26 @@
     });
   })();
 })();
+/* 1b. ヒーローのテキスト：画面に入るたび再生、出ると巻き戻る */
+(function () {
+  var copy = document.querySelector('.hero__copy');
+  if (!copy) return;
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) {
+    copy.classList.add('is-revealed');
+    return;
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          copy.classList.add('is-revealed');
+        } else {
+          copy.classList.remove('is-revealed');
+        }
+      });
+    }, { threshold: 0.25 }).observe(copy);
+  } else {
+    copy.classList.add('is-revealed');
+  }
+})();
