@@ -652,3 +652,23 @@
     copy.classList.add('is-revealed');
   }
 })();
+/* 1c. 段落テキスト：画面に入ると浮き上がり色づき、出ると元に戻る */
+(function () {
+  var lines = document.querySelectorAll('.reveal-line');
+  if (lines.length === 0) return;
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!('IntersectionObserver' in window) || prefersReduced) {
+    lines.forEach(function (el) { el.classList.add('is-visible'); });
+    return;
+  }
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+      } else {
+        entry.target.classList.remove('is-visible');
+      }
+    });
+  }, { threshold: 0.15 });
+  lines.forEach(function (el) { observer.observe(el); });
+})();
