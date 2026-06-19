@@ -1084,6 +1084,26 @@ button {
   transform: translateY(0);
 }
 
+/* 長文を1行（1段落）ずつ、スクロールで時間差表示する
+   位置・ブラーが先に解決し、少し遅れて文字色が淡い色から本来の色へ変わる（二段階の変化） */
+.reveal-line {
+  opacity: 0;
+  transform: translateY(1.4rem);
+  filter: blur(4px);
+  color: var(--color-wash-blue);
+  transition:
+    opacity 0.7s var(--ease-out),
+    transform 0.7s var(--ease-out),
+    filter 0.7s var(--ease-out),
+    color 1s var(--ease-out) 0.35s;
+}
+.reveal-line.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+  color: var(--color-ink);
+}
+
 /* ------------------------------------------------------------
    22. レスポンシブ
 ------------------------------------------------------------ */
@@ -1208,6 +1228,10 @@ button {
 
   .ribbon-divider path {
     stroke-dashoffset: 0 !important;
+  }
+
+  .reveal-line {
+    color: var(--color-ink) !important;
   }
 }
 
