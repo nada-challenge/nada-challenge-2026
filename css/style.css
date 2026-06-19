@@ -1339,3 +1339,44 @@ button {
     text-align: center;
   }
 }
+/* ナビゲーションのタップ・ホバー反応 */
+.nav__link {
+  position: relative;
+  transition: color 0.3s var(--ease-out);
+}
+
+.nav__link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: var(--color-cerulean);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s var(--ease-out);
+}
+
+.nav__link:hover,
+.nav__link:focus-visible {
+  color: var(--color-cerulean);
+}
+.nav__link:hover::after,
+.nav__link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+/* 押した瞬間（タップ・クリック中）はより濃い色に */
+.nav__link:active {
+  color: var(--color-navy);
+}
+
+/* 現在開いているページのリンク */
+.nav__link.is-current {
+  color: var(--color-cerulean);
+}
+.nav__link.is-current::after {
+  background: var(--color-navy);
+  transform: scaleX(1);
+}
