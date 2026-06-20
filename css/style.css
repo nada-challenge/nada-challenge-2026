@@ -509,6 +509,18 @@ button {
   margin-top: var(--space-3);
 }
 
+/* ホーム・ダイジェストの結びの一文 — 全文は about.html の「詳しく読む」で読めるため、
+   こちらは思い切って大きく・短く。サイズ比は住友生命MESSAGEページの見出し/本文比を参考に。 */
+.about-digest__legacy {
+  margin-top: var(--space-5);
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  color: var(--color-navy);
+}
+
 /* ------------------------------------------------------------
    9. 「どんなお祭り？」3カード
 ------------------------------------------------------------ */
@@ -967,16 +979,14 @@ button {
   margin-top: var(--space-3);
 }
 
-/* 「灘チャレンジの思い」終盤の継承メッセージ — 本文より明確に浮き上がる強調段落 */
+/* 「灘チャレンジの思い」終盤の継承メッセージ — 見出しと同程度に視線を引く強調パラグラフ */
 .prose__legacy {
-  margin-top: var(--space-6);
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  font-size: var(--fs-h2);
   font-weight: 600;
-  line-height: 1.7;
-  letter-spacing: 0.06em;
+  line-height: 1.6;
   color: var(--color-navy);
-  max-width: 26ch;
+  margin-top: var(--space-5);
 }
 
 /* ------------------------------------------------------------
