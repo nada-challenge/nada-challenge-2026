@@ -497,7 +497,7 @@ button {
 
 .about-digest__heading {
   font-family: var(--font-display);
-  font-size: var(--fs-h3);
+  font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   line-height: 1.7;
@@ -505,20 +505,17 @@ button {
   margin-top: var(--space-3);
 }
 
-.about-digest__body p + p {
-  margin-top: var(--space-3);
-}
-
-/* ホーム・ダイジェストの結びの一文 — 全文は about.html の「詳しく読む」で読めるため、
-   こちらは思い切って大きく・短く。サイズ比は住友生命MESSAGEページの見出し/本文比を参考に。 */
-.about-digest__legacy {
-  margin-top: var(--space-5);
+.about-digest__body p {
   font-family: var(--font-display);
-  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+  font-size: var(--fs-h3);
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: 0.05em;
   color: var(--color-navy);
+}
+
+.about-digest__body p + p {
+  margin-top: var(--space-3);
 }
 
 /* ------------------------------------------------------------
