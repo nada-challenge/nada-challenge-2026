@@ -967,6 +967,18 @@ button {
   margin-top: var(--space-3);
 }
 
+/* 「灘チャレンジの思い」終盤の継承メッセージ — 本文より明確に浮き上がる強調段落 */
+.prose__legacy {
+  margin-top: var(--space-6);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: var(--color-navy);
+  max-width: 26ch;
+}
+
 /* ------------------------------------------------------------
    18. アクセスページ
 ------------------------------------------------------------ */
