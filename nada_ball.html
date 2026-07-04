@@ -84,14 +84,15 @@
     box-shadow:0 1px 2px rgba(0,0,0,.35);
     display:inline-block;
   }
-  #muteBtn{
-    margin-top:auto;
+  #muteBtn, #hpBtn{
     font-family:inherit;font-weight:900;font-size:12px;
     padding:7px 0;border-radius:8px;border:2px solid var(--blue-3);
     background:linear-gradient(180deg,var(--blue-1),var(--blue-2));color:#fff;
     cursor:pointer;box-shadow:0 3px 0 var(--blue-3);
+    display:block;text-align:center;text-decoration:none;
   }
-  #muteBtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--blue-3);}
+  #muteBtn{margin-top:auto;}
+  #muteBtn:active, #hpBtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--blue-3);}
   /* ================= オーバーレイ ================= */
   .overlay{
     position:absolute;inset:0;display:flex;flex-direction:column;
@@ -122,6 +123,7 @@
   .dot.g{background:radial-gradient(circle at 32% 28%,#b8f0c4,#3fae52 60%,#1d6b2d);}
   .dot.b{background:radial-gradient(circle at 32% 28%,#b0d6ff,#2f7fe0 60%,#154a8c);}
   .dot.y{background:radial-gradient(circle at 32% 28%,#fff2b8,#f2c230 60%,#a87d0d);}
+  .dot.rb{background:conic-gradient(#ff5252,#ffb52e,#ffe14d,#4dd463,#3fa8ff,#8b5cf6,#ff5252);}
   button.btn{
     font-family:inherit;font-weight:900;font-size:clamp(16px,2.3vw,20px);letter-spacing:.12em;
     padding:12px 44px;border-radius:10px;border:2px solid var(--blue-3);
@@ -151,6 +153,7 @@
     <div class="side-label">SCORE</div>
     <div class="lcd" id="scoreBox" style="font-size:clamp(13px,2vw,18px);">0000000</div>
     <button id="muteBtn">🔊 サウンド ON</button>
+    <a id="hpBtn" href="https://nada-challenge.github.io/nada-challenge-2026/">🏠 灘チャレHPへ</a>
   </aside>
 
   <!-- タイトル画面 -->
@@ -174,10 +177,13 @@
         <span class="dot g"></span><span>バーが長くなる（緑の矢印が目じるし）</span>
         <span class="dot b"></span><span>バーが短くなる（青の矢印が目じるし）</span>
         <span class="dot y"></span><span>バーがふつうの状態に戻る</span>
+        <span class="dot rb"></span><span><b>スターモード！</b>15秒間むてき（超レア）</span>
       </div>
       <div style="font-size:12px;margin-top:8px;opacity:.85;">
         パワーアップの効果は<b>いちどにひとつだけ</b>。新しいアイテムを取ると前の効果は消えるよ。<br>
-        ボールを落としても効果はぜんぶ消えてしまうので注意！<br>
+        <b>虹色の星</b>を取るとスターモード！バーが虹色ロングになり、どんなブロックも一撃、
+        ふつうのブロックは<b>1つ先まで貫通</b>してこわせる！<br>
+        ボールを落とすと効果もスターもぜんぶ消えてしまうので注意！<br>
         操作：マウス移動 / ←→キー / 画面スライド。クリック・タップ・スペースでボール発射。
       </div>
     </div>
@@ -202,11 +208,15 @@
 <script>
 "use strict";
 /* =========================================================
- * 灘チャレンジ ブロックくずし v3
+ * 灘チャレンジ ブロックくずし v4
  * ・フィールド比率を本家準拠（480×455 ≒ 362:343）
  * ・時間帯（朝/昼/夕/夜)で変化する空・雲・街並みの背景
  * ・パワーアップは排他的な1状態（normal/long/short/shooting）
  * ・砲台はユーザー提供画像素材（Base64埋め込み・オフライン完結）
+ * ・NEW: スターモード（虹アイテム / 15回に1回ドロップ / 15秒）
+ *   - バーが虹色ロング＆光沢シマー
+ *   - ボールが虹色に発光、全ブロック一撃、通常ブロックは1つ先まで貫通
+ *   - 画面の縁が虹色に脈動、専用アルペジオBGM、虹の紙吹雪
  * =======================================================*/
 
 //------------------------------------------------ 定数
@@ -231,12 +241,17 @@ const BULLET_SPEED = 8;
 const FIRE_COOLDOWN = 260;
 const TOTAL_BALLS = 5;
 
+// --- スターモード関連 ---
+const RAINBOW_RATE = 1/15;     // ブロック破壊15回に1回、虹アイテムが出現
+const STAR_DURATION = 900;     // スターモード持続時間 = 15秒（60fps換算）
+const STAR_PIERCE_MAX = 1;     // 通常ブロックの貫通は「1つ先」まで
+
 const BAND_COLORS = ["#e8434a", "#8ec63f", "#54c6e8", "#2b3a8f", "#8e44ad"];
 const STRIPE_COLORS = { 5:"#ffd400", 10:"#c9d2da", 15:"#e0a927" };
 
 //------------------------------------------------ 砲台スプライト（提供画像を切り抜き・透過加工）
 const TURRET_IMG = new Image();
-TURRET_IMG.src = "data:image/png;base64,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";
+TURRET_IMG.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA4CAYAAABNGP5yAAAUJklEQVR42r1aS4xlV3Vde59z732vXtWr6mqX3dVddmMMGIOdL8mMOCJKJk5IpMiTCCkSUgiIZE5G1ZVJlGQQZRQhRlEkBm0i0UAAgSM1SJiQ8HFjN45/7W764/646/s+93PO3hmccz/vdYdQNp0qPbu66t137/6tvfbaB3iHX6pKqsqqypubm4z/n6/mnqpK7+iD3onhAIiIZO73FsBKnufLN2/eXMnzfKGqqsR7T8zsmVmY2amqIn5AWZbWe59VVWWYmY0xmmVZmQ4G077tT3o9UwyOHi16QAFgRER73XuePn3aPP3000JEelg77NsxfnNzk6PhqqoJgEf29/eXb1y78YFnv/nsH1x/89oTb93eXtvZ210Yj0ZJURQoyxLee4h4OOcR7Qeg0XGAqkKhMGRgE4ssy9Dv96vBYFCtrq5WR48e3VtfX3/5xR//+Ov3Hzv2g7W1tRsAXiYiXwflsE6gtxN5IlJVTfb29n71e//1vb/44fd/9PvXrl1dNGySyXSC/b09TPMpqsqhqio459Q5B+998xIvEBUQAGIGMSlTqCARqe9DaZoiSzP0F/pYXFzEcGmIweIAaZK4jY0Hdx5936NffvjRh7/w6COPfouIJpubm7y1tSX3xAG18XmeP3bmzJm/+/a3v/3U3t4+XblyGbdu3QIR1BqrNrFIkpTSNEFiUyIOERYR1I4QEYiE5zTGwFoLYwyYGeIFVVWick6dd/DO1/fXeB0xM62vr+O+o0dx7Ng6nvytJ5/56B999C+J6MZhMsG+jcif/OxnP/tv3zp79uFLly7BJon0ej06ceIEiiKnfJrTZDLB7dvbcFUJBUFU4KPhzvk6ws1nMxOYGdZaMAcnhExQAgSqQJZlWBgs0HBpiJWVFfT7Pa0qh2vXrsrFS2/gytUrT2/vbp9U1T8mois/rxN+XgfUxve+fObMPz733HMPv/rqa+7BBzeMiLCIwHuPvTzHTy9fxt7+PlxVASogZqCu7/oFhWpIP41pSBScEF7hZxAFZ4lgHwDeApaHy0isRb/fpzRNkGWrpihKPX/+vFtY6P/m2tra36rqnxKRQ3uLd+aAzc1N2tra0gJ48Plz5373woULun583TAz1emsAAYLAzz44AYeKEsURYnReITxaITpdArvfDTSgILFjblE8afojdgekGUZ0ixDv9dD1uvBGoMkTdHv9yHiQSAAAsNEGyeO87lzP9b3vOd9H3rqqadSAE5VQUTvPANOnTqFra0tVKNR72A0Qj6dkh8ONRksYHFxEWVVYTqZwrLB4uIiQISiKDGdTgIYlhXEexC3UQYIqtK0QiIKhsd4GWORpgmSJEGWZciyDMYaqChEPFQUZAK4eC8ACMYwee8dALlXbVAJQOUqjMdjWGOQphmOHDmClZUV5HmOsixRVRWMMej1UqzoSqxzhrUGSRKMsjZBlmVERCjLCuIdKufgXQUf/NKURV0inaaJIs8xiZklKnCVgzEGJrH3zgGJqjCzMht473Hr1k3s7O7i5MmTOHLkCJIkQVkWAemdgzEMmwZj0zTFYDDAcDjEysoyhsPlyXA4vEFE2N/fP767t5eNDg4wmUwwnU6Q5zmKPPAHVQUzI7EWaZaBiDAej7G9vQ3xgiRJACJ47wGRXzwROnXqFAAgS1MhZrHGwloLEY88z/HKK68AqqicAxDqbqG/gOWVFfT7C+gPFtDv9TFcGmJ1dRX3rd3njx079vrq6uoPAeibb775kTRNHkqMCa0wGjM6GGE0GmE8nqAoi1D3AUDqzgRjTJMdogog1tc9KYEsK4nIE1NDI0QF+bSAqyqISJOuVVmiKAocHOyjl/UQELuHweIAw+GyGQ6HT/Sy7HHnhcbjEQ729zGKgDnNp5hOpyjyAlVVoSxLOO+hsX0SM5IkZJVhBkcnBB5xOH5zWAzwzKxEBC+RzDgPRLQloprToigCFuR5jl6vF4CsF1J6Op5iZ3sb1hhy3qMoCuR53hifT/PGaGoieyd9UwlttcaKxFqw4epegmDrWVGoCCT29tpwxB4f3slgE17WhrJhY8CWYQzDWAslwIqF9Qmsc7BVBTYcHBo+rUl3REdQvHfnrw3QMviedgGrqhwoLIVeTvP5Fvo6uq1eW/QOZKj772hcfKOGImpIU9fz9eDbvLu5LvxWRCAq9AsHwfqrAIyqsopCNESA6qcjoMaG5r8zrSv8UJcKxYvaK6hxHhGFAYlmHTH/bhC1U6QqVBRQHAoEDyVgZCG1dDbxuiwhPJ7WdE7RlEXdHehul8yUUDN8oP6+42+Nl3WOpBBwyHH40CBITNLU6IwY0+a7astpdTZmMxrAHXBd10yDK23WtPXeKbWZPCJwKEn5v/j/284AAMrEajj2XpozMJJ6RhtpxWwGMBGYGMTRgPg5rScoDAXUdUpr0bwru28jAhj31gEUNcDmQZhqqqqt0aozdY+OM7qxrxOIOmZpTJs6kalLwmeAMXzajLX1PHGIr0OLmM0DRJdTyNFY+y2AtdFq8aDJC2rBrs2i2sMtgLb8X+uZ+Y74U8MKUfMRcxi7Ds0D6hZXO2IexHQum0Et8s+mLXVREFBprteZnGkdVztCZwqsLcL4SPe0BISItDZIVSGisyDWScN54K5bpc4gfdd/OpNprWiid2FjNIsIbRs+lAMOrQqLCNWSVs37mwfslAdBwU2aU5MJ3TbXkYM7sWxH4RoA6WdK/50SFIXq4XROfjsQMM/AoN2SqHt2G51gP3UyQmeZHs3g+R0P19Zde9uaUzDV6BNd2IDIPRJEmI0yc1B59W6EKAITtdR1piVop+7v0t66XVHngbfm3fXQ1cEgjZMoE8thZoHDZoBVDSIo3aXNoQvUOle0dBdj6ofXOnrURFfnBiAAIG4d1MTcS1SZEbGJ5RdWAqpKp0+fNsePHzebm5t2tL3dE++sdw6iUdqer3Nto0PNYNNJf9KfwenQGZRi2dRDEM3ToI7KrKEWiBkRY1lPnzZnz541m5ubP3N/aP8XwxnPPENx5VS/cOrUqYKNYVC333Nbp0pNqwqkUGcKl2pnCGZAtKFxzegrrROJcDd23ziNCcZapElKhZYwSZIkWeZcWTbv3drawunTp8358+d1fmtk5yN+ik41C09Vvf/CuXMfvn3p0vvcaLz675//l/cebG/3jE1gjCWOUjd18n8GsOYqoTV6Nmu6ZtUzQF3hdRZgBkYiP4jLlCSxSNOMJpMx9n568fEfPfPMP5l+9nLvvvu3e8eOXVpfX/9O3BNAVbm70LXzmx8AerB98Eu3L7z2xHP/+sU/u/q95568/J/fx3R7B5rnuDTogQf9Jnq1xk9zBKap804dN6SFqdPm6E4QIcywO8xwAQXVlRsdyfVUocCrX//a4Gtnz37S93pYffBd2PjQbxzc/MD7z1x6/vlv9h9+/3eJ6FXd3GSKmWDn1l78yne+85mv/f3f/NW1c+cWefs20ls3dbUoJAljAL2SJObNhWAYqc5Gswazuzw4xWjWRtfzfpcltspS2/v1jumRQdRRjOKOUb3HOM+ByQSrByNXqVJ15Sq98eILS68tLnxs8eRDH3vvR37vxetXrnyCNja+Wy9RbTQeqpr85xe/+A8Xz3zp029+41mYfOqPLy/RA0dWebA0MP0kxbYrQNdu4GDHo3f0KIyxIOdmxxltc4E0IARp6xTqDFLUZYTzmkAzXGmzP6tZIUND1GNbcPkU+Vu3sXvzOpLFBfz6yUdsKoqx99idjPSt69dl79IFvPTfP3n84PJPv/H68y/8ySO/8sSXVZXsqVOnCETy+nPPfeb1M2c+fekLz7gnH/ugWRwMDKBgDgyrEoFhxq/Bo9o7wG2pcJBmKEXgRCBRoARxiwdsALaATQBjAZOAbAKyFjAWZAzIC5QYCoIHIMQQIigzYExHNmtnBUFQpLgsgfEYyXiE4d4B1lOLx3r9sDViYNGmWBo8QCc3NowycPHia/4nn//nRW/t53dv3fptIvoBxdR795nNv/7h+c99bvj4Qqbv2djgpi0xgRhQMqDUwuVTXLh8GS9s38Z1k2CPDQ4AjEVRqKJQQEkBwwAzEpsgTRPYuBEySRKEUQ76v/M+SN+uQllVYYvsKqjzYO+a7BcJxhsiZIaxlKRYI8ZyMcVCVeKBwQCPbTyEtayPFAo2FBzNJrRHazEdj/Ef58+5ybvebX/5E5/60u98/ON/aAHgYGfnxPWXX166df0m9Z54DKWEbQs36q+CWEBlBaPAu+5bw/riEkZFid3xFDdGI+yUFfadw8h7KFGwnximg3UKglNFoQSvgFCgbBS6GZIISqwKVoXREG0FQ6Lqu2AthkmC1YSwvriII8ceQJZlSBILyxYsClYJ7TZqDoYUUlVwXrC8fB+/9NLLeuKNN4555/oWAFyeM6nwvpZ49a23UCUWGw9tYOnoKrSsUN3egUymkKqEdxXEORhRDLwiAWEl60GSHhSAR9DoDYW9v+E4+zNDmeGZUYBQgSAIvMEASBlImGCJYTr7BacKrwoBheUqBZndGEZqElhjwUQwSgEQ63GZLUzSA1mLigTjosTV0RgXd26jqiqiQEnZAoC1KiaCTJ7nuLm9DR30cf/qMpZPrMOsrsLs7aO8dRuyswspKrjSgaoSPfEYMMMwwda6HDiElMNDU6xnMgYwJtR43ShiB2FDYBtKA4g7h3obJO2UKUQQVfiaaDkX2GACcJrBLPSRDJeAhQVUYOzu7ePGrZu4efMGpgf78NMJ+sywhkoAUwsAJZuK2GABQB+EYn8fl14a4fr1m1h44H70FxdhVSAHY+BgDFvkMHkO6zx6RMiMhbEJYA3U2jCXG4ayAWLkyRhQYkFZirSfgZIENk1AxsJp3DA5B19UkKKEVBWkqgDxgQnWBKgGWyhEgdL5sH6fTCHGgCYpMBnB2QTjvMD27i72d3YxOdiHBUBOtNfLYMBTTjOJGdCryLCkAFNMOecdptdv4PqVqyBjkRqDjBSZAn0mpABSNvBZD2oMkCZAL4Pt9wHDoCSBSVNwkoCTFJQm4DSFGfRhl4dIV4bgpUUha7yfFomMJ6gO9lEdTOBHY/jJBDKZQvMpqKoglYc6B/Ee4j1KERTeY1xWyMsSeVWicBUK71CowknUDCnwixRhd1jWIzSRU/GBCPX7/YKZvAJcQSARrISANEkAKNj7RnIXpdjuPFyRI3cVZDKG43jYKU1BiwMkwyVkS8tgm8D0B7CDAZLhIpLlIRbWjoJWj9zmhf5Nt73zXr+7mxZgsBDKygHTKaQsIeMJZDKBFAVcXsBVDpUoChUUKihVUYqHE8CpoIKgUsCpNgyViWAiyIIUFTGYWaDaUGFVDacQp4qWfcdUq0dGafo0ItgoVDxUJfZxAlXh1AYbgpDCVSUwPYCO+kCvB93tQ7Ie/MUEpt9bg7VrPqa7zwtU4wn8ZAI3nkDGY2hRQKsSvizhixKuquBidwA6NLsDlgpthjHRdqqkqLjHOcKAOTigmkwyVTUCwCO0H1KJ8ryCNVxJ2nJ+iQSlbmVKoeXU/wcQAKosIBRam/cBOJ0dQdiAOQBm3OlBxMNXDlpWoLIAqwZDm8/uLk9abTAEoGWVhJamt6sFgouZ4UUQeF10gPd5QqpcDwccjayXbBw3soYBhsSMCOyt7rUylzXUjKwcDYjdgGL5WA5sEAR4B3gNFjLXRdpMfdJdxtVbYW3Vz1o8IQVM/LevWTS1AOqhqECoRKGkxtQOcC7oqXW9UH1lZ0lTD2nc0ePCAwhUGR3JHzPaZ9zjkyjQVZCV0KwA6tk+vLlds6OrCGmgw837dU5hwkzkieaXJeGXogofOgk1ilDPmBIgqaPPDVKis7pitPJj/eA6s7OljrBJd+jhHY2wXmNFntC52ayx0u4LoDE4RLO7Ua0DQzCgRiSt/x74FLX79fohhLTOcth+3xEHBxhqb8Roz+zN7jG0O7S12lpnvKWOMYR22pvfLDWTJLfqcXjQzvmBOXGUqJXJqPmOpac6KzRTK0uQBqnetCvHWM5h4dekuKHg0XpfL1rv4NrpnrRNRb7LJqTRC1HXM83q+PXD15ig1NRqVwOjTsZ1T2PcMVJTu6ClrgaJZmcLRDCmjg4fMMD7RES4nrZihnQAKHQAH0EGcQ3POrv26s73NCMb32VbcZetEajT2ebEIhVFo7dqR3IlbVYBStqIaN3jA6FjhXG7QhzEFC0G5EWRqaLVk7UjzypFxJ8thdAS6Y6NrDb7vfgdhxMl3Cn4Izz8nIw4qyNRd5VwlxUZddYFnTMJ1M2W6FAB4Ci0+rpWeHNzk60xXuO5Va/NMRDMrCp1djOnBITG2VHruvp/LYk3iBdaYUSEyCUiWREJoNfZAncgpHZ/A8KCNrJz/Sa25FpcqVsXNaDL4UgtQFxV0ynz1taWDI8evWUSrgRAropSFS5+kBKFdOe2Q9QaYLuC0RkhlGI7bybBzpmgmbMCkeg0Xb4+9tY9H0Bcs4lZ9bhzeIJoNhNqJ0jtBABGgR4BfVIsZQms5TERCavqQ/v7Ox8kcQadJUC4uK0EQrdLze71NBId1c6pgHpe6J4BiNFQaveLqrPH4Gr9cH79WLNQ6ixFutnZ4Ca1yxSNuUMR2ywRUsNQUmSZXVPVh+yff/JTP0lUeu77PzBgoFSlhKPXI5jVylCb3hpTefZ8h6HOHFGvz2N3aWpZu+XVISpN2nRE1Q6QKmmLGdqeB2hYYucmsytJhsZ1kQNQEZkru3v40jef/fBX3rj0ov3qV78yUFU8MB7jpE3hp1P0jUWfGYts0GNqik4aLsHtbkY72KgdnNPYclQBL4ATKAtAArCA1Mwcm8PMCbKaMwigvol4rTLXL6PdooroH/kLxwwuRJFXFcq40p+ox/XeAl5/4UWMzr+09D9es0dV1rxflwAAAABJRU5ErkJggg==";
 
 //------------------------------------------------ ステージデータ（全15・完全固定）
 // 0=なし, 1=耐久1, 5=耐久5, 10=耐久10, 15=耐久15
@@ -389,26 +404,39 @@ let stageClearT = 0;
 let shakeT = 0;
 let keyL = false, keyR = false;
 let muted = false;
+// --- スターモード状態（パワーアップとは独立した「重ねがけレイヤー」） ---
+let starT = 0;                 // 残りフレーム数（>0 でスターモード中）
+let pierceChain = 0;           // 通常ブロックの連続貫通カウンタ
+let starBeat = 0;              // スター専用アルペジオの拍カウンタ
 function isShooting(){ return paddleMode === "shooting"; }
+function isStar(){ return starT > 0; }
 
 //------------------------------------------------ 時間帯テーマ（朝・昼・夕方・夜）
 const THEMES = {
   morning:{ sky:["#ffd8b0","#cbe6f7","#eef8ff"], sun:{x:70,y:120,r:24,color:"#ffd98a",glow:"rgba(255,215,140,.45)"},
     moon:false, stars:false, cloud:"#ffffff", cloudShade:"rgba(180,205,230,.5)",
     bldg:"#a8bfd2", window:"#eef6fc", tree:"#4d8f33", trunk:"#8a5a33",
-    grass:["#8fd45e","#57a832"], text:"#2b4a66" },
+    grass:["#8fd45e","#57a832"], text:"#2b4a66",
+    mtnFar:"#c3d5e4", mtnNear:"#93b49f", haze:"rgba(255,236,214,.38)",
+    towerBody:"#d6544a", towerLattice:"rgba(255,255,255,.55)", towerDeck:"#f4eee2" },
   noon:{ sky:["#6fc3f2","#a8dcf8","#e6f6ff"], sun:{x:428,y:38,r:17,color:"#fff3c9",glow:"rgba(255,245,200,.5)"},
     moon:false, stars:false, cloud:"#ffffff", cloudShade:"rgba(150,190,225,.45)",
     bldg:"#9db5c9", window:"#f4fafe", tree:"#3f8f2e", trunk:"#7a5230",
-    grass:["#7ecb4f","#4c9e2c"], text:"#1d4a70" },
+    grass:["#7ecb4f","#4c9e2c"], text:"#1d4a70",
+    mtnFar:"#adc9de", mtnNear:"#7fae8c", haze:"rgba(255,255,255,.28)",
+    towerBody:"#e0392a", towerLattice:"rgba(255,255,255,.6)", towerDeck:"#f7f3ea" },
   evening:{ sky:["#f2a75e","#e07a8c","#6d5a99"], sun:{x:88,y:335,r:28,color:"#ffcf6d",glow:"rgba(255,170,90,.5)"},
     moon:false, stars:false, cloud:"#ffd6bd", cloudShade:"rgba(190,110,120,.45)",
     bldg:"#584f70", window:"#ffd98a", tree:"#2e5a33", trunk:"#5c3d26",
-    grass:["#6aa04a","#3c6e2c"], text:"#ffffff" },
+    grass:["#6aa04a","#3c6e2c"], text:"#ffffff",
+    mtnFar:"#8a6f9c", mtnNear:"#5a5480", haze:"rgba(255,170,110,.30)",
+    towerBody:"#a83a3c", towerLattice:"rgba(255,220,180,.5)", towerDeck:"#e8c98c" },
   night:{ sky:["#0c1834","#152747","#243a63"], sun:null,
     moon:{x:410,y:58,r:17}, stars:true, cloud:"rgba(190,205,228,.30)", cloudShade:"rgba(90,110,145,.35)",
     bldg:"#1a2438", window:"#ffdf7a", tree:"#173420", trunk:"#2a2018",
-    grass:["#2c5c2a","#183c18"], text:"#eaf3ff" },
+    grass:["#2c5c2a","#183c18"], text:"#eaf3ff",
+    mtnFar:"#1a2946", mtnNear:"#121d36", haze:"rgba(90,120,170,.18)",
+    towerBody:"#7e2f34", towerLattice:"rgba(255,190,150,.35)", towerDeck:"#5a3a30" },
 };
 function computeThemeName(){
   const h = new Date().getHours();
@@ -474,11 +502,44 @@ function paintBackground(){
   drawCloud(b, 95, 26, 1.15, theme.cloud);
   drawCloud(b, 290, 14, 0.9, theme.cloud);
   drawCloud(b, 435, 34, 0.8, theme.cloud);
-  // 中層のうっすら雲
+  const groundY = H - 20;   // 芝生の上端
+
+  // --- 六甲山系（遠景・近景の2層シルエット＋空気遠近の霞） ---
+  function ridge(baseY, amp, color, seed){
+    b.fillStyle = color;
+    b.beginPath();
+    b.moveTo(0, baseY);
+    for(let x=0; x<=W; x+=6){
+      const y = baseY
+        - amp * (0.50 + 0.34*Math.sin(x*0.011 + seed) + 0.16*Math.sin(x*0.043 + seed*2.7));
+      b.lineTo(x, y);
+    }
+    b.lineTo(W, groundY + 4); b.lineTo(0, groundY + 4);
+    b.closePath(); b.fill();
+  }
+  ridge(groundY - 26, 96, theme.mtnFar, 1.3);   // 遠景：主稜線（左寄りが高い六甲最高峰のイメージ）
+  // 霞：山裾と街の間に空気の層を敷いて奥行きを出す
+  const hz = b.createLinearGradient(0, groundY - 120, 0, groundY - 28);
+  hz.addColorStop(0, "rgba(255,255,255,0)");
+  hz.addColorStop(1, theme.haze);
+  b.fillStyle = hz;
+  b.fillRect(0, groundY - 120, W, 92);
+  ridge(groundY - 8, 56, theme.mtnNear, 4.1);   // 近景：手前の低い尾根
+
+  // 中層のうっすら雲（山にかかる霧雲として山の手前に）
   drawCloud(b, 200, 300, 0.7, theme.cloudShade);
   drawCloud(b, 400, 250, 0.55, theme.cloudShade);
 
-  const groundY = H - 20;   // 芝生の上端
+  // 鳥のシルエット（朝・昼のみ）
+  if(themeName === "morning" || themeName === "noon"){
+    b.strokeStyle = "rgba(50,80,110,.55)"; b.lineWidth = 1.4;
+    [[212,96],[240,84],[268,100]].forEach(pt=>{
+      b.beginPath();
+      b.arc(pt[0]-4, pt[1], 4.5, Math.PI*1.15, Math.PI*1.85);
+      b.arc(pt[0]+4, pt[1], 4.5, Math.PI*1.15, Math.PI*1.85);
+      b.stroke();
+    });
+  }
   // 建物（窓は夜に灯る）
   function building(x, w2, h2){
     b.fillStyle = theme.bldg;
@@ -495,6 +556,46 @@ function paintBackground(){
   building(52, 46, 66);
   building(330, 56, 48);
   building(398, 40, 60);
+  // --- 神戸ポートタワー（鼓型の赤い鉄塔・パイプ格子・上部展望室） ---
+  function portTower(x, s){
+    const hT = 86 * s;                      // 塔全体の高さ感
+    const bodyH = hT * 0.86;                // 鉄骨部分の高さ
+    const wAt = t => s * (3.2 + 6.0*Math.pow(Math.abs(2*t - 1), 1.5) + (1 - t)*1.6);
+    // 本体シルエット（双曲面カーブを縦スライスで近似）
+    b.fillStyle = theme.towerBody;
+    b.beginPath();
+    for(let i=0; i<=24; i++){
+      const t = i/24, y = groundY - bodyH*t, w = wAt(t);
+      if(i === 0) b.moveTo(x - w, y); else b.lineTo(x - w, y);
+    }
+    for(let i=24; i>=0; i--){
+      const t = i/24, y = groundY - bodyH*t;
+      b.lineTo(x + wAt(t), y);
+    }
+    b.closePath(); b.fill();
+    // 水平リング＋対角のパイプ格子
+    b.strokeStyle = theme.towerLattice; b.lineWidth = 0.8;
+    for(let i=1; i<5; i++){
+      const t = i/5, y = groundY - bodyH*t, w = wAt(t);
+      b.beginPath(); b.moveTo(x - w, y); b.lineTo(x + w, y); b.stroke();
+    }
+    b.beginPath();
+    b.moveTo(x - wAt(0), groundY); b.lineTo(x + wAt(1), groundY - bodyH);
+    b.moveTo(x + wAt(0), groundY); b.lineTo(x - wAt(1), groundY - bodyH);
+    b.stroke();
+    // 上部の展望室（白い帯＋窓：夜は灯る）
+    const deckY = groundY - bodyH, deckW = wAt(1) + 2.2*s;
+    b.fillStyle = theme.towerDeck;
+    b.fillRect(x - deckW, deckY - 7*s, deckW*2, 7*s);
+    b.fillStyle = themeName === "night" ? "#ffdf7a" : "rgba(90,120,150,.7)";
+    for(let i=-2; i<=2; i++) b.fillRect(x + i*3.4*s - 1, deckY - 5*s, 2, 3*s);
+    // 頂部の赤い円盤とアンテナ
+    b.fillStyle = theme.towerBody;
+    b.fillRect(x - deckW*0.8, deckY - 9.5*s, deckW*1.6, 2.5*s);
+    b.strokeStyle = theme.towerBody; b.lineWidth = 1.2;
+    b.beginPath(); b.moveTo(x, deckY - 9.5*s); b.lineTo(x, deckY - 16*s); b.stroke();
+  }
+  portTower(287, 1.0);
   // 木
   function tree(x, s){
     b.fillStyle = theme.trunk;
@@ -575,11 +676,57 @@ const SND = {
   shot:   ()=>beep(660,.04,"sawtooth",.03),
   lose:   ()=>beep(120,.4,"sawtooth",.06),
   clear:  ()=>{beep(660,.1,"square");setTimeout(()=>beep(880,.12,"square"),110);setTimeout(()=>beep(1100,.18,"square"),240);},
+  // スター獲得：上昇ファンファーレ（マリオ風）
+  star:   ()=>{[523,659,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>beep(f,.1,"square",.06), i*65));},
+  // スター終了：下降フレーズで「切れた」感を出す
+  starEnd:()=>{[880,740,659,523].forEach((f,i)=>setTimeout(()=>beep(f,.11,"triangle",.05), i*95));},
 };
 document.getElementById("muteBtn").addEventListener("click", function(){
   muted = !muted;
   this.textContent = muted ? "🔇 サウンド OFF" : "🔊 サウンド ON";
 });
+
+//------------------------------------------------ BGM（背景音楽・効果音とは別系統のシーケンサー）
+let bgmTimer = null, bgmStep = 0;
+const BGM_TEMPO = 132;                         // BPM
+const BGM_STEP_SEC = 60 / BGM_TEMPO / 2;       // 8分音符 1ステップ
+// C長調・2小節（32ステップ）の明るいループ。0は休符。
+const BGM_MELODY = [
+  523,0,659,0, 784,659,523,0,  587,0,698,0, 880,698,587,0,
+  659,0,784,0, 988,784,659,0,  523,587,659,698, 784,0,659,0,
+];
+const BGM_BASS = [
+  262,0,262,0, 196,0,196,0,  294,0,294,0, 220,0,220,0,
+  330,0,330,0, 247,0,247,0,  262,0,196,0, 262,0,0,0,
+];
+function bgmNote(freq, dur, type, vol){
+  if(muted || !AC || !freq) return;
+  try{
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  }catch(e){}
+}
+function startBGM(){
+  try{
+    if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  }catch(e){ return; }
+  stopBGM();
+  bgmStep = 0;
+  bgmTimer = setInterval(()=>{
+    if(mode !== "playing" && mode !== "stageclear") return;  // オーバーレイ表示中は停止
+    if(isStar()) return;   // スター中は専用アルペジオを優先しBGMは自動休止
+    bgmNote(BGM_MELODY[bgmStep % 32], BGM_STEP_SEC*0.9,  "triangle", 0.022);
+    bgmNote(BGM_BASS[bgmStep % 32],   BGM_STEP_SEC*0.95, "square",   0.013);
+    bgmStep++;
+  }, BGM_STEP_SEC * 1000);
+}
+function stopBGM(){
+  if(bgmTimer){ clearInterval(bgmTimer); bgmTimer = null; }
+}
 
 //------------------------------------------------ カラーユーティリティ
 function hexToRgb(hex){
@@ -643,11 +790,13 @@ function launchBall(){
   ball.vx = Math.cos(a)*BALL_SPEED; ball.vy = Math.sin(a)*BALL_SPEED;
 }
 
-//------------------------------------------------ 落球処理（効果を全リセット）
+//------------------------------------------------ 落球処理（効果を全リセット・スターも消滅）
 function loseBall(){
   ballsLeft--;
   paddleMode = "normal";
   paddle.w = PADDLE_WIDTHS.normal;
+  starT = 0;              // スターモードも落球で消滅
+  pierceChain = 0;
   bullets = [];
   trail = [];
   shakeT = 14;
@@ -655,20 +804,69 @@ function loseBall(){
   updateHUD();
   if(ballsLeft <= 0){
     mode = "gameover";
+    stopBGM();
     show("overScreen");
   }else{
     attachBall();
   }
 }
 
-//------------------------------------------------ アイテム（効果は排他的な1状態）
+//------------------------------------------------ スターモード制御
+function endStar(){
+  starT = 0;
+  pierceChain = 0;
+  // スター中に取ったパワーアップの幅設定へ復帰
+  paddle.w = PADDLE_WIDTHS[paddleMode === "long" ? "long" : paddleMode === "short" ? "short" : "normal"];
+  paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+}
+// スター獲得時：虹の紙吹雪を大量放出
+function spawnStarBurst(x,y){
+  const n = REDUCED_MOTION ? 16 : 46;
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = 1.5+Math.random()*4;
+    const life = 30 + Math.random()*24;
+    particles.push({x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1.6,
+      life:life, maxLife:life, r:1.5+Math.random()*2.4,
+      color:"hsl("+Math.floor(Math.random()*360)+",95%,60%)"});
+  }
+}
+// スター中のブロック破壊時：虹の破片を追加
+function spawnStarShards(x,y){
+  for(let i=0;i<8;i++){
+    const a = Math.random()*Math.PI*2, s = 1.5+Math.random()*3;
+    const life = 22 + Math.random()*14;
+    particles.push({x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1,
+      life:life, maxLife:life, r:1.4+Math.random()*2,
+      color:"hsl("+Math.floor(Math.random()*360)+",95%,62%)"});
+  }
+}
+
+//------------------------------------------------ アイテム（通常効果は排他的な1状態、スターは重ねがけレイヤー）
 function maybeDropItem(x,y){
+  // 虹アイテム：破壊15回に1回の独立抽選（他アイテムより優先）
+  if(Math.random() < RAINBOW_RATE){
+    items.push({ x:x, y:y, type:"rainbow" });
+    return;
+  }
   if(Math.random() < ITEM_DROP_RATE){
     const types = ["red","green","blue","yellow"];
     items.push({ x:x, y:y, type: types[Math.floor(Math.random()*types.length)] });
   }
 }
 function applyItem(type){
+  if(type === "rainbow"){
+    const extend = isStar();
+    starT = STAR_DURATION;      // 再取得は15秒リフレッシュ
+    pierceChain = 0;
+    starBeat = 0;
+    paddle.w = PADDLE_WIDTHS.long;   // スター中はつねにロングバー
+    paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+    flashes.push({text: extend ? "★スター延長！！★" : "★スターモード！！★", t:0});
+    SND.star();
+    spawnStarBurst(paddle.x, PADDLE_Y - 6);
+    shakeT = Math.max(shakeT, 8);
+    return;
+  }
   SND.item();
   if(type === "red"){ paddleMode = "shooting"; flashes.push({text:"砲台そうちゃく！", t:0}); }
   else if(type === "green"){ paddleMode = "long"; flashes.push({text:"バー拡大！", t:0}); }
@@ -676,6 +874,7 @@ function applyItem(type){
   else { paddleMode = "normal"; flashes.push({text:"バーもとどおり", t:0}); }
   // 幅は shooting/normal=通常, long=長い, short=短い
   paddle.w = PADDLE_WIDTHS[paddleMode === "long" ? "long" : paddleMode === "short" ? "short" : "normal"];
+  if(isStar()) paddle.w = PADDLE_WIDTHS.long;   // スター中は幅ロングを維持（効果自体は切替済み）
   paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
 }
 
@@ -695,10 +894,23 @@ function damageBlock(b, idx){
   }
   updateHUD();
 }
+// スターモード専用：耐久無視の一撃破壊（残hp分のスコアも加算）
+function destroyBlock(b, idx){
+  score += b.hp * 10 + b.maxHp * 10;
+  SND.break();
+  spawnParticles(b.x+b.w/2, b.y+b.h/2, b.maxHp===1 ? b.color : STRIPE_COLORS[b.maxHp]);
+  spawnStarShards(b.x+b.w/2, b.y+b.h/2);
+  maybeDropItem(b.x+b.w/2, b.y+b.h/2);
+  blocks.splice(idx,1);
+  updateHUD();
+  if(blocks.length === 0){ stageCleared(); return true; }
+  return false;
+}
 function stageCleared(){
   SND.clear();
   if(stageIndex >= STAGES.length-1){
     mode = "clear";
+    stopBGM();
     show("clearScreen");
   }else{
     mode = "stageclear";
@@ -772,11 +984,13 @@ function startGame(){
   ballsLeft = TOTAL_BALLS;
   score = 0;
   paddleMode = "normal";
+  starT = 0; pierceChain = 0;
   paddle.w = PADDLE_WIDTHS.normal; paddle.x = W/2;
   refreshTheme(false);
   buildStage(0);
   show(null);
   mode = "playing";
+  startBGM();
 }
 
 //------------------------------------------------ 更新
@@ -792,6 +1006,29 @@ function update(){
   }
   if(mode !== "playing") return;
 
+  // --- スターモードのタイマー・演出・専用アルペジオ ---
+  if(isStar()){
+    starT--;
+    starBeat++;
+    if(starBeat % 9 === 0){
+      const arp = [659, 784, 1047, 784];   // マリオ風の高速ループ
+      beep(arp[(starBeat/9) % 4 | 0], .06, "square", .028);
+    }
+    // ボールから虹の火花が絶えず散る
+    if(!REDUCED_MOTION && !ball.attached && starT % 2 === 0){
+      const life = 14 + Math.random()*10;
+      particles.push({x: ball.x + (Math.random()-0.5)*6, y: ball.y + (Math.random()-0.5)*6,
+        vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.2 + 0.4,
+        life:life, maxLife:life, r:1+Math.random()*1.6,
+        color:"hsl("+Math.floor(Math.random()*360)+",95%,65%)"});
+    }
+    if(starT <= 0){
+      endStar();
+      flashes.push({text:"スターおわり…", t:0});
+      SND.starEnd();
+    }
+  }
+
   if(keyL || keyR){
     paddle.x += (keyR ? 7 : 0) - (keyL ? 7 : 0);
     paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
@@ -802,7 +1039,7 @@ function update(){
     ball.x += ball.vx; ball.y += ball.vy;
     if(!REDUCED_MOTION){
       trail.push({x: ball.x, y: ball.y});
-      if(trail.length > 9) trail.shift();
+      if(trail.length > (isStar() ? 14 : 9)) trail.shift();
     }
     if(ball.x < BALL_R){ ball.x = BALL_R; ball.vx *= -1; SND.wall(); }
     if(ball.x > W-BALL_R){ ball.x = W-BALL_R; ball.vx *= -1; SND.wall(); }
@@ -817,12 +1054,31 @@ function update(){
       ball.vy = Math.sin(ang)*s;
       if(ball.vy > -1.6) ball.vy = -1.6;
       ball.y = PADDLE_Y - BALL_R;
+      pierceChain = 0;          // バーで打ち返したら貫通カウンタをリセット
       SND.paddle();
     }
     for(let i=blocks.length-1; i>=0; i--){
       const b = blocks[i];
       if(ball.x + BALL_R < b.x || ball.x - BALL_R > b.x + b.w ||
          ball.y + BALL_R < b.y || ball.y - BALL_R > b.y + b.h) continue;
+      if(isStar()){
+        // --- スターモード：どのブロックも一撃破壊 ---
+        const wasNormal = (b.maxHp === 1);
+        const cleared = destroyBlock(b, i);
+        if(cleared) break;
+        if(wasNormal && pierceChain < STAR_PIERCE_MAX){
+          pierceChain++;        // 通常ブロックは反射せず貫通（1つ先まで）
+          continue;             // 同フレーム内で隣接ブロックの判定も続行
+        }
+        // 貫通上限に達した、または硬いブロック：ここで反射
+        const overlapX = Math.min(ball.x + BALL_R - b.x, b.x + b.w - (ball.x - BALL_R));
+        const overlapY = Math.min(ball.y + BALL_R - b.y, b.y + b.h - (ball.y - BALL_R));
+        if(overlapX < overlapY){ ball.vx *= -1; ball.x += ball.vx > 0 ? overlapX : -overlapX; }
+        else { ball.vy *= -1; ball.y += ball.vy > 0 ? overlapY : -overlapY; }
+        pierceChain = 0;
+        break;
+      }
+      // --- 通常時：従来どおり反射＋1ダメージ ---
       const overlapX = Math.min(ball.x + BALL_R - b.x, b.x + b.w - (ball.x - BALL_R));
       const overlapY = Math.min(ball.y + BALL_R - b.y, b.y + b.h - (ball.y - BALL_R));
       if(overlapX < overlapY){ ball.vx *= -1; ball.x += ball.vx > 0 ? overlapX : -overlapX; }
@@ -840,7 +1096,8 @@ function update(){
     for(let j=blocks.length-1; j>=0; j--){
       const b = blocks[j];
       if(bl.x >= b.x && bl.x <= b.x+b.w && bl.y >= b.y && bl.y <= b.y+b.h){
-        damageBlock(b, j);
+        if(isStar()) destroyBlock(b, j);   // スター中は弾も一撃
+        else damageBlock(b, j);
         bullets.splice(i,1);
         break;
       }
@@ -956,70 +1213,116 @@ function drawBlock(b){
     BLOCK_W + SPRITE_PAD*2, BLOCK_H + SPRITE_PAD*2);
 }
 
-//------------------------------------------------ 描画：銀色バー（＋矢印 or 砲台のどちらか一方のみ）
+//------------------------------------------------ 描画：バー（通常＝銀色 / スター＝虹色シマー）
 function drawPaddle(){
   const pw = paddle.w, px = paddle.x - pw/2, py = PADDLE_Y, h = PADDLE_H;
   ctx.save();
   ctx.fillStyle = "rgba(0,0,0,.18)";
   roundRectPath(px+1, py+3, pw, h, h/2); ctx.fill();
-  const g = ctx.createLinearGradient(0, py, 0, py+h);
-  g.addColorStop(0, "#ffffff");
-  g.addColorStop(.3, "#dde3e9");
-  g.addColorStop(.65, "#9aa5ae");
-  g.addColorStop(1, "#5f6a73");
-  ctx.fillStyle = g;
-  roundRectPath(px, py, pw, h, h/2); ctx.fill();
-  ctx.strokeStyle = "#3c454d"; ctx.lineWidth = 1.5;
-  roundRectPath(px, py, pw, h, h/2); ctx.stroke();
-  const capG = ctx.createLinearGradient(0, py, 0, py+h);
-  capG.addColorStop(0, "#6b7680"); capG.addColorStop(1, "#23292f");
-  ctx.fillStyle = capG;
-  ctx.beginPath(); ctx.arc(px + h/2, py + h/2, h/2 - 1, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(px + pw - h/2, py + h/2, h/2 - 1, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(px + h, py + 3.5); ctx.lineTo(px + pw - h, py + 3.5); ctx.stroke();
-  // 下面の環境反射（芝生・空の映り込み）
-  ctx.strokeStyle = "rgba(130,180,225,.4)"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(px + h, py + h - 2.5); ctx.lineTo(px + pw - h, py + h - 2.5); ctx.stroke();
 
-  // 拡大／縮小の矢印（砲台と同時には絶対に出ない：状態が排他のため）
-  if(paddleMode === "long" || paddleMode === "short"){
-    const color = paddleMode === "long" ? "#2fae4f" : "#2f7fe0";
-    const cy = py + h/2;
-    const inset = h + 5;
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(px + inset, cy); ctx.lineTo(px + pw - inset, cy);
-    ctx.stroke();
-    const head = 6;
-    if(paddleMode === "long"){
+  if(isStar()){
+    // --- スターモード：流れる虹グラデーション＋外周グロー ---
+    const off = performance.now()/6;
+    const g = ctx.createLinearGradient(px, 0, px + pw, 0);
+    for(let i=0;i<=6;i++){
+      g.addColorStop(i/6, "hsl(" + ((off + i*60) % 360) + ",95%,60%)");
+    }
+    ctx.shadowColor = "hsl(" + (off % 360) + ",95%,60%)";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = g;
+    roundRectPath(px, py, pw, h, h/2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // メタリック光沢（上面ハイライト＋下面シェード）
+    const gloss = ctx.createLinearGradient(0, py, 0, py + h);
+    gloss.addColorStop(0, "rgba(255,255,255,.85)");
+    gloss.addColorStop(.4, "rgba(255,255,255,.25)");
+    gloss.addColorStop(.65, "rgba(255,255,255,0)");
+    gloss.addColorStop(1, "rgba(0,0,0,.28)");
+    ctx.fillStyle = gloss;
+    roundRectPath(px, py, pw, h, h/2); ctx.fill();
+    // 流れる白いシマー（光の帯が左から右へ走り抜ける）
+    const shX = px + ((performance.now()/5) % (pw + 60)) - 30;
+    ctx.save();
+    roundRectPath(px, py, pw, h, h/2); ctx.clip();
+    const sh = ctx.createLinearGradient(shX - 14, 0, shX + 14, 0);
+    sh.addColorStop(0, "rgba(255,255,255,0)");
+    sh.addColorStop(.5, "rgba(255,255,255,.75)");
+    sh.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = sh;
+    ctx.fillRect(px, py, pw, h);
+    ctx.restore();
+    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1.5;
+    roundRectPath(px, py, pw, h, h/2); ctx.stroke();
+    // バーから立ちのぼるキラキラ
+    if(!REDUCED_MOTION){
+      for(let i=0;i<3;i++){
+        const sx = px + ((performance.now()/9 + i*137) % pw);
+        const sy = py - 3 - ((performance.now()/16 + i*53) % 14);
+        ctx.fillStyle = "hsla(" + ((off*2 + i*120)%360) + ",95%,70%,.9)";
+        ctx.beginPath(); ctx.arc(sx, sy, 1.4, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  } else {
+    // --- 通常時：従来の銀色バー ---
+    const g = ctx.createLinearGradient(0, py, 0, py+h);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(.3, "#dde3e9");
+    g.addColorStop(.65, "#9aa5ae");
+    g.addColorStop(1, "#5f6a73");
+    ctx.fillStyle = g;
+    roundRectPath(px, py, pw, h, h/2); ctx.fill();
+    ctx.strokeStyle = "#3c454d"; ctx.lineWidth = 1.5;
+    roundRectPath(px, py, pw, h, h/2); ctx.stroke();
+    const capG = ctx.createLinearGradient(0, py, 0, py+h);
+    capG.addColorStop(0, "#6b7680"); capG.addColorStop(1, "#23292f");
+    ctx.fillStyle = capG;
+    ctx.beginPath(); ctx.arc(px + h/2, py + h/2, h/2 - 1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + pw - h/2, py + h/2, h/2 - 1, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px + h, py + 3.5); ctx.lineTo(px + pw - h, py + 3.5); ctx.stroke();
+    // 下面の環境反射（芝生・空の映り込み）
+    ctx.strokeStyle = "rgba(130,180,225,.4)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px + h, py + h - 2.5); ctx.lineTo(px + pw - h, py + h - 2.5); ctx.stroke();
+
+    // 拡大／縮小の矢印（砲台と同時には絶対に出ない：状態が排他のため）
+    if(paddleMode === "long" || paddleMode === "short"){
+      const color = paddleMode === "long" ? "#2fae4f" : "#2f7fe0";
+      const cy = py + h/2;
+      const inset = h + 5;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(px + inset - head, cy);
-      ctx.lineTo(px + inset + head*0.7, cy - head*0.8);
-      ctx.lineTo(px + inset + head*0.7, cy + head*0.8);
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(px + pw - inset + head, cy);
-      ctx.lineTo(px + pw - inset - head*0.7, cy - head*0.8);
-      ctx.lineTo(px + pw - inset - head*0.7, cy + head*0.8);
-      ctx.closePath(); ctx.fill();
-    }else{
-      ctx.beginPath();
-      ctx.moveTo(px + inset + head, cy);
-      ctx.lineTo(px + inset - head*0.7, cy - head*0.8);
-      ctx.lineTo(px + inset - head*0.7, cy + head*0.8);
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(px + pw - inset - head, cy);
-      ctx.lineTo(px + pw - inset + head*0.7, cy - head*0.8);
-      ctx.lineTo(px + pw - inset + head*0.7, cy + head*0.8);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(px + inset, cy); ctx.lineTo(px + pw - inset, cy);
+      ctx.stroke();
+      const head = 6;
+      if(paddleMode === "long"){
+        ctx.beginPath();
+        ctx.moveTo(px + inset - head, cy);
+        ctx.lineTo(px + inset + head*0.7, cy - head*0.8);
+        ctx.lineTo(px + inset + head*0.7, cy + head*0.8);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px + pw - inset + head, cy);
+        ctx.lineTo(px + pw - inset - head*0.7, cy - head*0.8);
+        ctx.lineTo(px + pw - inset - head*0.7, cy + head*0.8);
+        ctx.closePath(); ctx.fill();
+      }else{
+        ctx.beginPath();
+        ctx.moveTo(px + inset + head, cy);
+        ctx.lineTo(px + inset - head*0.7, cy - head*0.8);
+        ctx.lineTo(px + inset - head*0.7, cy + head*0.8);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px + pw - inset - head, cy);
+        ctx.lineTo(px + pw - inset + head*0.7, cy - head*0.8);
+        ctx.lineTo(px + pw - inset + head*0.7, cy + head*0.8);
+        ctx.closePath(); ctx.fill();
+      }
     }
   }
 
-  // 砲台（提供画像スプライト・バー中央）
+  // 砲台（提供画像スプライト・バー中央／スター中も shooting なら表示）
   if(isShooting() && TURRET_IMG.complete && TURRET_IMG.naturalWidth > 0){
     const th = 26;
     const tw = th * TURRET_IMG.naturalWidth / TURRET_IMG.naturalHeight;
@@ -1028,8 +1331,51 @@ function drawPaddle(){
   ctx.restore();
 }
 
-//------------------------------------------------ 描画：光沢紫ボール
+//------------------------------------------------ 描画：ボール（通常＝光沢紫 / スター＝虹色発光）
 function drawBall(){
+  if(isStar()){
+    const t = performance.now();
+    const hue0 = (t/5) % 360;
+    // 虹色トレイル（残像そのものが虹のグラデーションになる）
+    for(let i=0;i<trail.length;i++){
+      const tt = (i+1)/trail.length;
+      ctx.globalAlpha = tt*0.5;
+      ctx.fillStyle = "hsl(" + ((t/5 + i*36) % 360) + ",95%,60%)";
+      ctx.beginPath();
+      ctx.arc(trail[i].x, trail[i].y, BALL_R*(0.4+0.65*tt), 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // 大きめの虹グロー（色相が回転）
+    const glow = ctx.createRadialGradient(ball.x, ball.y, BALL_R*0.4, ball.x, ball.y, BALL_R*3.2);
+    glow.addColorStop(0, "hsla(" + hue0 + ",95%,65%,.55)");
+    glow.addColorStop(1, "hsla(" + hue0 + ",95%,65%,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_R*3.2, 0, Math.PI*2); ctx.fill();
+    // 本体：色相が流れる光沢球
+    const g = ctx.createRadialGradient(ball.x - 2.5, ball.y - 2.5, 1, ball.x, ball.y, BALL_R);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(.35, "hsl(" + hue0 + ",95%,68%)");
+    g.addColorStop(.7, "hsl(" + ((hue0+90)%360) + ",95%,55%)");
+    g.addColorStop(1, "hsl(" + ((hue0+180)%360) + ",95%,38%)");
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+    // 光沢ハイライト
+    ctx.beginPath();
+    ctx.ellipse(ball.x - 2.5, ball.y - 3, 2.4, 1.5, -0.6, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.fill();
+    // ボールのまわりを回る4つの星屑
+    for(let k=0;k<4;k++){
+      const a = t/300 + k*Math.PI/2;
+      const rx = ball.x + Math.cos(a)*(BALL_R+6);
+      const ry = ball.y + Math.sin(a)*(BALL_R+6);
+      ctx.fillStyle = "hsla(" + ((hue0 + k*90)%360) + ",95%,70%,.95)";
+      ctx.beginPath(); ctx.arc(rx, ry, 1.8, 0, Math.PI*2); ctx.fill();
+    }
+    return;
+  }
+  // --- 通常時：光沢紫ボール ---
   // 残像トレイル
   for(let i=0;i<trail.length;i++){
     const t = (i+1)/trail.length;
@@ -1062,6 +1408,39 @@ function drawBall(){
 
 //------------------------------------------------ 描画：アイテム
 function drawItem(it){
+  if(it.type === "rainbow"){
+    // --- 虹アイテム：回転する虹のオーラ＋色相が流れる光沢球＋★ ---
+    const t = performance.now();
+    const rot = t/400;
+    for(let k=0;k<6;k++){
+      ctx.strokeStyle = "hsla(" + ((t/6 + k*60)%360) + ",95%,60%,.85)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(it.x, it.y, ITEM_R + 3.5, rot + k*Math.PI/3, rot + k*Math.PI/3 + Math.PI/4.5);
+      ctx.stroke();
+    }
+    const hue0 = (t/6) % 360;
+    const g = ctx.createRadialGradient(it.x - 3, it.y - 3, 1, it.x, it.y, ITEM_R);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(.4, "hsl(" + hue0 + ",95%,68%)");
+    g.addColorStop(.75, "hsl(" + ((hue0+80)%360) + ",95%,55%)");
+    g.addColorStop(1, "hsl(" + ((hue0+160)%360) + ",95%,40%)");
+    ctx.beginPath(); ctx.arc(it.x, it.y, ITEM_R, 0, Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.stroke();
+    // 光沢ハイライト
+    ctx.beginPath();
+    ctx.ellipse(it.x - 3, it.y - 3.5, 3, 1.8, -0.6, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fill();
+    // ★グリフ
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 2;
+    ctx.fillText("★", it.x, it.y + 0.5);
+    ctx.shadowBlur = 0;
+    return;
+  }
   const cols = {
     red:   ["#ffb3ad","#e8434a","#8f1018"],
     green: ["#b8f0c4","#3fae52","#1d6b2d"],
@@ -1104,6 +1483,17 @@ function draw(){
     drawCloud(ctx, cx1, 26, 0.7, theme.cloud);
     drawCloud(ctx, cx2, 44, 0.5, theme.cloud);
     ctx.globalAlpha = 1;
+  }
+  // 夜だけ：ポートタワー頂部の航空障害灯がゆっくり点滅
+  if(themeName === "night" && Math.floor(performance.now()/700) % 2 === 0){
+    const bx = 287, by = (H - 20) - 86*0.86 - 16;
+    const lg = ctx.createRadialGradient(bx, by, 0.5, bx, by, 6);
+    lg.addColorStop(0, "rgba(255,90,90,.95)");
+    lg.addColorStop(1, "rgba(255,90,90,0)");
+    ctx.fillStyle = lg;
+    ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#ff5252";
+    ctx.beginPath(); ctx.arc(bx, by, 1.8, 0, Math.PI*2); ctx.fill();
   }
 
   blocks.forEach(drawBlock);
@@ -1150,6 +1540,25 @@ function draw(){
     ctx.shadowBlur = 0;
   });
   ctx.globalAlpha = 1;
+
+  // --- スターモード：画面の縁が虹色に脈動 ---
+  if(isStar()){
+    const t = performance.now()/6;
+    const pulse = 0.65 + 0.35*Math.sin(performance.now()/130);
+    for(let i=0;i<3;i++){
+      const inset = 2 + i*4;
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      for(let k=0;k<=6;k++){
+        g.addColorStop(k/6, "hsla(" + ((t + k*60 + i*45) % 360) + ",95%,60%," + ((0.55 - i*0.16)*pulse).toFixed(3) + ")");
+      }
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 9 - i*3;
+      if(i === 0){ ctx.shadowColor = "hsla(" + (t%360) + ",95%,60%,.8)"; ctx.shadowBlur = 18; }
+      ctx.strokeRect(inset, inset, W - inset*2, H - inset*2);
+      ctx.shadowBlur = 0;
+    }
+    // 残り秒数の表示は廃止（縁の虹脈動と終了時の下降フレーズ音でスター状態を伝える）
+  }
 
   if(mode === "stageclear"){
     ctx.fillStyle = "rgba(0,0,0,.45)";
