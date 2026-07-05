@@ -137,6 +137,41 @@
     font-weight:900;font-size:clamp(26px,5.2vw,42px);color:#1e78b8;
     text-shadow:0 2px 0 #fff, 0 5px 10px rgba(13,59,102,.25);
   }
+  /* ===== スマホ（縦画面）：フィールドを上・情報を下に縦積み ===== */
+  @media (max-width: 600px){
+    body{
+      align-items:flex-start;      /* 縦長でも上端から表示（見切れ防止） */
+      overflow-y:auto;             /* 収まらない端末はスクロールで救済 */
+      touch-action:pan-y;          /* ページは縦スクロール可（canvasは個別に抑止） */
+      padding:10px 0;
+    }
+    canvas{touch-action:none;}     /* フィールド上のスワイプはバー操作に専有 */
+    #frame{
+      flex-direction:column;       /* 横並び→縦積み */
+      align-items:stretch;
+      gap:10px;
+      width:min(94vw, 440px);
+      padding:12px;
+    }
+    #fieldWrap{
+      width:100%;
+      flex:none;                   /* stretchによる縦伸びを止め、aspect-ratioで高さを決定 */
+    }
+    #side{
+      width:100%;
+      min-width:0;                 /* 135px指定を解除しフィールド幅を確保 */
+      flex-direction:row;          /* 情報を横一列のスコアバーに */
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:6px 12px;
+    }
+    .side-logo{display:none;}      /* タイトルはフィールド内オーバーレイにあるため省略 */
+    .side-label{margin-top:0;}
+    .lcd{min-height:0;padding:5px 12px;}
+    #muteBtn{margin-top:0;flex:1 1 44%;}
+    #hpBtn{flex:1 1 44%;}
+  }
   @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
 </style>
 </head>
@@ -655,17 +690,22 @@ function makeStripePattern(targetCtx, color){
 
 //------------------------------------------------ サウンド
 let AC = null;
-function beep(freq, dur, type, gain){
-  if(muted) return;
+// 1音を鳴らす共通ヘルパー（効果音・BGMともにこれ1つを経由する）
+function tone(freq, dur, type, gain){
   try{
-    if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
     const o = AC.createOscillator(), g = AC.createGain();
-    o.type = type || "square"; o.frequency.value = freq;
-    g.gain.setValueAtTime(gain || 0.04, AC.currentTime);
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, AC.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
     o.connect(g).connect(AC.destination);
     o.start(); o.stop(AC.currentTime + dur);
   }catch(e){}
+}
+// 効果音：呼び出し時にACを遅延生成する
+function beep(freq, dur, type, gain){
+  if(muted) return;
+  if(!AC){ try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return; } }
+  tone(freq, dur, type || "square", gain || 0.04);
 }
 const SND = {
   paddle: ()=>beep(340,.05,"square"),
@@ -699,16 +739,10 @@ const BGM_BASS = [
   262,0,262,0, 196,0,196,0,  294,0,294,0, 220,0,220,0,
   330,0,330,0, 247,0,247,0,  262,0,196,0, 262,0,0,0,
 ];
+// BGM：ACが既にある前提（startBGMで確保済み）、休符(freq=0)は鳴らさない
 function bgmNote(freq, dur, type, vol){
   if(muted || !AC || !freq) return;
-  try{
-    const o = AC.createOscillator(), g = AC.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol, AC.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
-    o.connect(g).connect(AC.destination);
-    o.start(); o.stop(AC.currentTime + dur);
-  }catch(e){}
+  tone(freq, dur, type, vol);
 }
 function startBGM(){
   try{
@@ -777,6 +811,16 @@ function buildStage(idx){
   attachBall();
   updateHUD();
 }
+// バー位置を場内に収める
+function clampPaddle(){
+  paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+}
+// 現在の状態からバー幅を決める（スター中は常にロング、それ以外はモード準拠。
+// shootingにはlong/short/normalのような専用幅がないためnormal扱い）
+function syncPaddleWidth(){
+  paddle.w = isStar() ? PADDLE_WIDTHS.long : (PADDLE_WIDTHS[paddleMode] || PADDLE_WIDTHS.normal);
+  clampPaddle();
+}
 function attachBall(){
   ball.attached = true;
   ball.x = paddle.x; ball.y = PADDLE_Y - BALL_R - 2;
@@ -815,30 +859,28 @@ function loseBall(){
 function endStar(){
   starT = 0;
   pierceChain = 0;
-  // スター中に取ったパワーアップの幅設定へ復帰
-  paddle.w = PADDLE_WIDTHS[paddleMode === "long" ? "long" : paddleMode === "short" ? "short" : "normal"];
-  paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+  syncPaddleWidth();   // スター中に取ったパワーアップの幅設定へ復帰
+}
+// パーティクル生成の共通エンジン。角度・速度・寿命・半径をランダムに散らす。
+// color は固定色文字列、または呼び出しごとに色を返す関数（虹色などに使用）。
+function emit(x, y, n, spMin, spRange, vyBias, lifeMin, lifeRange, rMin, rRange, color){
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = spMin + Math.random()*spRange;
+    const life = lifeMin + Math.random()*lifeRange;
+    particles.push({x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s + vyBias,
+      life:life, maxLife:life, r:rMin + Math.random()*rRange,
+      color: typeof color === "function" ? color() : color});
+  }
 }
 // スター獲得時：虹の紙吹雪を大量放出
 function spawnStarBurst(x,y){
-  const n = REDUCED_MOTION ? 16 : 46;
-  for(let i=0;i<n;i++){
-    const a = Math.random()*Math.PI*2, s = 1.5+Math.random()*4;
-    const life = 30 + Math.random()*24;
-    particles.push({x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1.6,
-      life:life, maxLife:life, r:1.5+Math.random()*2.4,
-      color:"hsl("+Math.floor(Math.random()*360)+",95%,60%)"});
-  }
+  emit(x, y, REDUCED_MOTION ? 16 : 46, 1.5, 4, -1.6, 30, 24, 1.5, 2.4,
+    ()=>"hsl("+Math.floor(Math.random()*360)+",95%,60%)");
 }
 // スター中のブロック破壊時：虹の破片を追加
 function spawnStarShards(x,y){
-  for(let i=0;i<8;i++){
-    const a = Math.random()*Math.PI*2, s = 1.5+Math.random()*3;
-    const life = 22 + Math.random()*14;
-    particles.push({x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1,
-      life:life, maxLife:life, r:1.4+Math.random()*2,
-      color:"hsl("+Math.floor(Math.random()*360)+",95%,62%)"});
-  }
+  emit(x, y, 8, 1.5, 3, -1, 22, 14, 1.4, 2,
+    ()=>"hsl("+Math.floor(Math.random()*360)+",95%,62%)");
 }
 
 //------------------------------------------------ アイテム（通常効果は排他的な1状態、スターは重ねがけレイヤー）
@@ -859,8 +901,7 @@ function applyItem(type){
     starT = STAR_DURATION;      // 再取得は15秒リフレッシュ
     pierceChain = 0;
     starBeat = 0;
-    paddle.w = PADDLE_WIDTHS.long;   // スター中はつねにロングバー
-    paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+    syncPaddleWidth();          // スター中はつねにロングバー
     flashes.push({text: extend ? "★スター延長！！★" : "★スターモード！！★", t:0});
     SND.star();
     spawnStarBurst(paddle.x, PADDLE_Y - 6);
@@ -872,10 +913,8 @@ function applyItem(type){
   else if(type === "green"){ paddleMode = "long"; flashes.push({text:"バー拡大！", t:0}); }
   else if(type === "blue"){ paddleMode = "short"; flashes.push({text:"バー縮小…", t:0}); }
   else { paddleMode = "normal"; flashes.push({text:"バーもとどおり", t:0}); }
-  // 幅は shooting/normal=通常, long=長い, short=短い
-  paddle.w = PADDLE_WIDTHS[paddleMode === "long" ? "long" : paddleMode === "short" ? "short" : "normal"];
-  if(isStar()) paddle.w = PADDLE_WIDTHS.long;   // スター中は幅ロングを維持（効果自体は切替済み）
-  paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+  // 幅は long=長い / short=短い / それ以外=通常。スター中はロングを維持。
+  syncPaddleWidth();
 }
 
 //------------------------------------------------ ブロックヒット共通処理
@@ -920,12 +959,7 @@ function stageCleared(){
 
 //------------------------------------------------ パーティクル
 function spawnParticles(x,y,color){
-  for(let i=0;i<12;i++){
-    const a = Math.random()*Math.PI*2, s = 1+Math.random()*2.8;
-    const life = 20 + Math.random()*16;
-    particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.2,
-      life:life, maxLife:life, r:1.2+Math.random()*1.8, color:color});
-  }
+  emit(x, y, 12, 1, 2.8, -1.2, 20, 16, 1.2, 1.8, color);
 }
 
 //------------------------------------------------ 入力
@@ -1031,7 +1065,7 @@ function update(){
 
   if(keyL || keyR){
     paddle.x += (keyR ? 7 : 0) - (keyL ? 7 : 0);
-    paddle.x = Math.max(paddle.w/2, Math.min(W - paddle.w/2, paddle.x));
+    clampPaddle();
     if(ball.attached) ball.x = paddle.x;
   }
 
