@@ -252,6 +252,10 @@
  *   - バーが虹色ロング＆光沢シマー
  *   - ボールが虹色に発光、全ブロック一撃、通常ブロックは1つ先まで貫通
  *   - 画面の縁が虹色に脈動、専用アルペジオBGM、虹の紙吹雪
+ * ・NEW: 壁バウンドコンボ（wallHitCombo 0〜3）
+ *   - 壁反射で増加（スター中は増えない）、ブロックヒットで1段階減衰
+ *   - ボール直撃ダメージ倍率 ×1/×2/×4/×6（弾・スター中は対象外）
+ *   - 尾の色と長さがコンボ段階で地味に変化
  * =======================================================*/
 
 //------------------------------------------------ 定数
@@ -281,12 +285,17 @@ const RAINBOW_RATE = 1/15;     // ブロック破壊15回に1回、虹アイテ�
 const STAR_DURATION = 900;     // スターモード持続時間 = 15秒（60fps換算）
 const STAR_PIERCE_MAX = 1;     // 通常ブロックの貫通は「1つ先」まで
 
+// --- 壁バウンドコンボ関連 ---
+const COMBO_DMG_MULT = [1, 2, 4, 6];                       // wallHitCombo → ダメージ倍率
+const COMBO_TRAIL_COLORS = ["#b05fd6", "#3fae52", "#e8434a", "#8b3fd6"];  // 0:紫 / 1:緑 / 2:赤 / 3:濃紫
+const COMBO_TRAIL_LEN = [9, 11, 12, 13];                   // 尾の最大保持数（スター時14より常に短い）
+
 const BAND_COLORS = ["#e8434a", "#8ec63f", "#54c6e8", "#2b3a8f", "#8e44ad"];
 const STRIPE_COLORS = { 5:"#ffd400", 10:"#c9d2da", 15:"#e0a927" };
 
 //------------------------------------------------ 砲台スプライト（提供画像を切り抜き・透過加工）
 const TURRET_IMG = new Image();
-TURRET_IMG.src = "data:image/png;base64,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";
+TURRET_IMG.src = "data:image/png;base64,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";
 
 //------------------------------------------------ ステージデータ（全15・完全固定）
 // 0=なし, 1=耐久1, 5=耐久5, 10=耐久10, 15=耐久15
@@ -443,6 +452,8 @@ let muted = false;
 let starT = 0;                 // 残りフレーム数（>0 でスターモード中）
 let pierceChain = 0;           // 通常ブロックの連続貫通カウンタ
 let starBeat = 0;              // スター専用アルペジオの拍カウンタ
+// --- 壁バウンドコンボ状態（0〜3：壁反射で増加、ブロックヒットで1段階減衰） ---
+let wallHitCombo = 0;
 function isShooting(){ return paddleMode === "shooting"; }
 function isStar(){ return starT > 0; }
 
@@ -826,6 +837,7 @@ function attachBall(){
   ball.x = paddle.x; ball.y = PADDLE_Y - BALL_R - 2;
   ball.vx = 0; ball.vy = 0;
   trail = [];
+  wallHitCombo = 0;
 }
 function launchBall(){
   if(!ball.attached) return;
@@ -841,6 +853,7 @@ function loseBall(){
   paddle.w = PADDLE_WIDTHS.normal;
   starT = 0;              // スターモードも落球で消滅
   pierceChain = 0;
+  wallHitCombo = 0;       // 壁バウンドコンボも落球でリセット
   bullets = [];
   trail = [];
   shakeT = 14;
@@ -901,6 +914,7 @@ function applyItem(type){
     starT = STAR_DURATION;      // 再取得は15秒リフレッシュ
     pierceChain = 0;
     starBeat = 0;
+    wallHitCombo = 0;           // スター中は確定破壊のため、コンボは0から再スタート
     syncPaddleWidth();          // スター中はつねにロングバー
     flashes.push({text: extend ? "★スター延長！！★" : "★スターモード！！★", t:0});
     SND.star();
@@ -918,11 +932,16 @@ function applyItem(type){
 }
 
 //------------------------------------------------ ブロックヒット共通処理
-function damageBlock(b, idx){
-  b.hp--;
-  score += 10;
+// isBallHit: ボールの直接衝突なら true（壁バウンドコンボ倍率の対象）、砲台の弾なら false（常に×1）
+function damageBlock(b, idx, isBallHit){
+  // 倍率判定は「減衰前」の wallHitCombo で行う（ダメージ計算→減衰の順序を厳守）
+  const mult = isBallHit ? COMBO_DMG_MULT[wallHitCombo] : 1;
+  b.hp = Math.max(0, b.hp - mult);   // 倍率がhpを上回る場合も確実に破壊（マイナス防止）
+  score += 10 * mult;                // ヒットスコアはダメージ量に比例
+  // ブロックに当てるたびにコンボは1段階減衰（弾からの呼び出しでも実行される）
+  wallHitCombo = Math.max(0, wallHitCombo - 1);
   if(b.hp <= 0){
-    score += b.maxHp * 10;
+    score += b.maxHp * 10;           // 破壊ボーナスは従来通り（倍率なし）
     SND.break();
     spawnParticles(b.x+b.w/2, b.y+b.h/2, b.maxHp===1 ? b.color : STRIPE_COLORS[b.maxHp]);
     maybeDropItem(b.x+b.w/2, b.y+b.h/2);
@@ -934,6 +953,7 @@ function damageBlock(b, idx){
   updateHUD();
 }
 // スターモード専用：耐久無視の一撃破壊（残hp分のスコアも加算）
+// ※ wallHitCombo には一切影響しない（damageBlockの減衰処理とは別系統）
 function destroyBlock(b, idx){
   score += b.hp * 10 + b.maxHp * 10;
   SND.break();
@@ -954,6 +974,7 @@ function stageCleared(){
   }else{
     mode = "stageclear";
     stageClearT = 80;
+    // ※ wallHitCombo はステージクリアではリセットしない（落球しない限り持ち越し）
   }
 }
 
@@ -1019,6 +1040,7 @@ function startGame(){
   score = 0;
   paddleMode = "normal";
   starT = 0; pierceChain = 0;
+  wallHitCombo = 0;
   paddle.w = PADDLE_WIDTHS.normal; paddle.x = W/2;
   refreshTheme(false);
   buildStage(0);
@@ -1073,11 +1095,13 @@ function update(){
     ball.x += ball.vx; ball.y += ball.vy;
     if(!REDUCED_MOTION){
       trail.push({x: ball.x, y: ball.y});
-      if(trail.length > (isStar() ? 14 : 9)) trail.shift();
+      // 尾の最大保持数：通常時はコンボ段階で 9〜12（スター時の14より常に短い）
+      if(trail.length > (isStar() ? 14 : COMBO_TRAIL_LEN[wallHitCombo])) trail.shift();
     }
-    if(ball.x < BALL_R){ ball.x = BALL_R; ball.vx *= -1; SND.wall(); }
-    if(ball.x > W-BALL_R){ ball.x = W-BALL_R; ball.vx *= -1; SND.wall(); }
-    if(ball.y < BALL_R){ ball.y = BALL_R; ball.vy *= -1; SND.wall(); }
+    // 壁反射：コンボ増加（最大3・スター中は増やさない＝スター終了後への持ち越し防止）
+    if(ball.x < BALL_R){ ball.x = BALL_R; ball.vx *= -1; if(!isStar() && wallHitCombo < 3) wallHitCombo++; SND.wall(); }
+    if(ball.x > W-BALL_R){ ball.x = W-BALL_R; ball.vx *= -1; if(!isStar() && wallHitCombo < 3) wallHitCombo++; SND.wall(); }
+    if(ball.y < BALL_R){ ball.y = BALL_R; ball.vy *= -1; if(!isStar() && wallHitCombo < 3) wallHitCombo++; SND.wall(); }
     if(ball.vy > 0 &&
        ball.y + BALL_R >= PADDLE_Y && ball.y + BALL_R <= PADDLE_Y + PADDLE_H + 6 &&
        ball.x >= paddle.x - paddle.w/2 - BALL_R && ball.x <= paddle.x + paddle.w/2 + BALL_R){
@@ -1089,6 +1113,7 @@ function update(){
       if(ball.vy > -1.6) ball.vy = -1.6;
       ball.y = PADDLE_Y - BALL_R;
       pierceChain = 0;          // バーで打ち返したら貫通カウンタをリセット
+      wallHitCombo = 0;         // バーで打ち返したら壁バウンドコンボもリセット（壁で溜め直す）
       SND.paddle();
     }
     for(let i=blocks.length-1; i>=0; i--){
@@ -1096,7 +1121,7 @@ function update(){
       if(ball.x + BALL_R < b.x || ball.x - BALL_R > b.x + b.w ||
          ball.y + BALL_R < b.y || ball.y - BALL_R > b.y + b.h) continue;
       if(isStar()){
-        // --- スターモード：どのブロックも一撃破壊 ---
+        // --- スターモード：どのブロックも一撃破壊（wallHitComboは介在しない） ---
         const wasNormal = (b.maxHp === 1);
         const cleared = destroyBlock(b, i);
         if(cleared) break;
@@ -1112,12 +1137,12 @@ function update(){
         pierceChain = 0;
         break;
       }
-      // --- 通常時：従来どおり反射＋1ダメージ ---
+      // --- 通常時：従来どおり反射＋コンボ倍率つきダメージ ---
       const overlapX = Math.min(ball.x + BALL_R - b.x, b.x + b.w - (ball.x - BALL_R));
       const overlapY = Math.min(ball.y + BALL_R - b.y, b.y + b.h - (ball.y - BALL_R));
       if(overlapX < overlapY){ ball.vx *= -1; ball.x += ball.vx > 0 ? overlapX : -overlapX; }
       else { ball.vy *= -1; ball.y += ball.vy > 0 ? overlapY : -overlapY; }
-      damageBlock(b, i);
+      damageBlock(b, i, true);
       break;
     }
     if(ball.y > H + BALL_R) loseBall();
@@ -1131,7 +1156,7 @@ function update(){
       const b = blocks[j];
       if(bl.x >= b.x && bl.x <= b.x+b.w && bl.y >= b.y && bl.y <= b.y+b.h){
         if(isStar()) destroyBlock(b, j);   // スター中は弾も一撃
-        else damageBlock(b, j);
+        else damageBlock(b, j, false);     // 弾は常に倍率×1
         bullets.splice(i,1);
         break;
       }
@@ -1409,33 +1434,44 @@ function drawBall(){
     }
     return;
   }
-  // --- 通常時：光沢紫ボール ---
+  // --- 通常時：光沢紫ボール（尾の色はwallHitComboで変化：紫→緑→赤→濃紫） ---
   // 残像トレイル
+  const trailColor = COMBO_TRAIL_COLORS[wallHitCombo];
   for(let i=0;i<trail.length;i++){
     const t = (i+1)/trail.length;
     ctx.globalAlpha = t*0.22;
-    ctx.fillStyle = "#b05fd6";
+    ctx.fillStyle = trailColor;
     ctx.beginPath();
     ctx.arc(trail[i].x, trail[i].y, BALL_R*(0.35+0.55*t), 0, Math.PI*2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // やわらかいグロー
+  // コンボ色からボール本体用の明色（ハイライト）・基調色・暗色を自動生成
+  const [cr, cg, cb] = hexToRgb(trailColor);
+  const bodyLight = mix(trailColor, 255, .70);   // 中心の明るいハイライト
+  const bodyMid   = trailColor;                  // 基調色
+  const bodyDeep  = mix(trailColor, 0, .48);     // 縁の暗色
+  // やわらかいグロー（不透明度が脈動して色彩に動きを持たせる）
+  const pulse = 0.30 + 0.14*Math.sin(performance.now()/240);
   const glow = ctx.createRadialGradient(ball.x, ball.y, BALL_R*0.4, ball.x, ball.y, BALL_R*2.3);
-  glow.addColorStop(0, "rgba(176,95,214,.30)");
-  glow.addColorStop(1, "rgba(176,95,214,0)");
+  glow.addColorStop(0, "rgba("+cr+","+cg+","+cb+","+pulse.toFixed(3)+")");
+  glow.addColorStop(1, "rgba("+cr+","+cg+","+cb+",0)");
   ctx.fillStyle = glow;
   ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_R*2.3, 0, Math.PI*2); ctx.fill();
-  const g = ctx.createRadialGradient(ball.x - 2.5, ball.y - 2.5, 1, ball.x, ball.y, BALL_R);
-  g.addColorStop(0, "#f2d9ff");
-  g.addColorStop(.35, "#b05fd6");
-  g.addColorStop(.75, "#7a2ba0");
-  g.addColorStop(1, "#3f1157");
+  // 本体：ハイライトの位置がゆっくり周回して光沢が動いて見える
+  const ha = performance.now()/500;
+  const hx = ball.x + Math.cos(ha)*2.2, hy = ball.y + Math.sin(ha)*2.2;
+  const g = ctx.createRadialGradient(hx, hy, 1, ball.x, ball.y, BALL_R);
+  g.addColorStop(0, bodyLight);
+  g.addColorStop(.35, bodyMid);
+  g.addColorStop(.75, mix(trailColor, 0, .28));
+  g.addColorStop(1, bodyDeep);
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI*2);
   ctx.fillStyle = g; ctx.fill();
+  // 光沢ハイライト（周回する光の点に合わせて位置も動く）
   ctx.beginPath();
-  ctx.ellipse(ball.x - 2.5, ball.y - 3, 2.2, 1.4, -0.6, 0, Math.PI*2);
+  ctx.ellipse(hx - 0.5, hy - 0.8, 2.2, 1.4, -0.6, 0, Math.PI*2);
   ctx.fillStyle = "rgba(255,255,255,.85)";
   ctx.fill();
 }
