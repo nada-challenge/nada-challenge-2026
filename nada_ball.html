@@ -287,7 +287,7 @@ const STAR_PIERCE_MAX = 1;     // 通常ブロックの貫通は「1つ先」ま
 
 // --- 壁バウンドコンボ関連 ---
 const COMBO_DMG_MULT = [1, 2, 4, 6];                       // wallHitCombo → ダメージ倍率
-const COMBO_TRAIL_COLORS = ["#b05fd6", "#3fae52", "#e8434a", "#8b3fd6"];  // 0:紫 / 1:緑 / 2:赤 / 3:濃紫
+const COMBO_TRAIL_COLORS = ["#b05fd6", "#3fae52", "#e8434a", "#2f7fe0"];  // 0:紫 / 1:緑 / 2:赤 / 3:青
 const COMBO_TRAIL_LEN = [9, 11, 12, 13];                   // 尾の最大保持数（スター時14より常に短い）
 
 const BAND_COLORS = ["#e8434a", "#8ec63f", "#54c6e8", "#2b3a8f", "#8e44ad"];
@@ -1434,7 +1434,7 @@ function drawBall(){
     }
     return;
   }
-  // --- 通常時：光沢紫ボール（尾の色はwallHitComboで変化：紫→緑→赤→濃紫） ---
+  // --- 通常時：光沢ボール（色はwallHitComboで変化：紫→緑→赤→青） ---
   // 残像トレイル
   const trailColor = COMBO_TRAIL_COLORS[wallHitCombo];
   for(let i=0;i<trail.length;i++){
