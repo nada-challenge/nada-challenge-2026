@@ -243,19 +243,18 @@
 <script>
 "use strict";
 /* =========================================================
- * 灘チャレンジ ブロックくずし v4
+ * 灘チャレンジ ブロックくずし v5
  * ・フィールド比率を本家準拠（480×455 ≒ 362:343）
  * ・時間帯（朝/昼/夕/夜)で変化する空・雲・街並みの背景
  * ・パワーアップは排他的な1状態（normal/long/short/shooting）
  * ・砲台はユーザー提供画像素材（Base64埋め込み・オフライン完結）
- * ・NEW: スターモード（虹アイテム / 15回に1回ドロップ / 15秒）
- *   - バーが虹色ロング＆光沢シマー
- *   - ボールが虹色に発光、全ブロック一撃、通常ブロックは1つ先まで貫通
- *   - 画面の縁が虹色に脈動、専用アルペジオBGM、虹の紙吹雪
- * ・NEW: 壁バウンドコンボ（wallHitCombo 0〜3）
- *   - 壁反射で増加（スター中は増えない）、ブロックヒットで1段階減衰
- *   - ボール直撃ダメージ倍率 ×1/×2/×4/×6（弾・スター中は対象外）
- *   - 尾の色と長さがコンボ段階で地味に変化
+ * ・スターモード（虹アイテム / 15回に1回ドロップ / 15秒）
+ * ・壁バウンドコンボ（wallHitCombo 0〜3）
+ * ・NEW(v5): ステージ設計を全面刷新
+ *   - 盤面は「埋め尽くさない」。各ステージの占有量（フットプリント）はほぼ一定に保ち、
+ *     余白（空セル）を必ず残す。難易度の上昇要因はブロックの“硬度”に一本化。
+ *   - 硬度1ブロックの最低保証（MIN_SOFT_BLOCKS）。盤面生成後に不足していれば、
+ *     最も硬いブロックから順に硬度1へ格下げして必ず一定数を確保（＝壊れなさ過ぎを防止）。
  * =======================================================*/
 
 //------------------------------------------------ 定数
@@ -280,6 +279,11 @@ const BULLET_SPEED = 8;
 const FIRE_COOLDOWN = 260;
 const TOTAL_BALLS = 5;
 
+// --- 硬度1ブロックの最低保証 ---
+// 各ステージで硬度1（1発で壊れる）ブロックをこの数だけ必ず用意する。
+// 盤面生成後に不足していれば、最も硬いブロックから順に硬度1へ格下げして充足させる。
+const MIN_SOFT_BLOCKS = 14;
+
 // --- スターモード関連 ---
 const RAINBOW_RATE = 1/15;     // ブロック破壊15回に1回、虹アイテムが出現
 const STAR_DURATION = 900;     // スターモード持続時間 = 15秒（60fps換算）
@@ -295,129 +299,120 @@ const STRIPE_COLORS = { 5:"#ffd400", 10:"#c9d2da", 15:"#e0a927" };
 
 //------------------------------------------------ 砲台スプライト（提供画像を切り抜き・透過加工）
 const TURRET_IMG = new Image();
-TURRET_IMG.src = "data:image/png;base64,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";
+TURRET_IMG.src = "data:image/png;base64,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";
 
 //------------------------------------------------ ステージデータ（全15・完全固定）
 // 0=なし, 1=耐久1, 5=耐久5, 10=耐久10, 15=耐久15
+//
+// 【設計方針（v5）】
+//  ・盤面は必ず余白（空セル）を残す＝どのステージも「埋め尽くさない」。
+//  ・各ステージのブロック占有量（フットプリント）は概ね一定（≒28〜36個）。
+//    → 難易度をブロック数・密度で上げない。上昇要因は硬度のみ。
+//  ・硬度の内訳をステージ順に段階的に重くする（1 → 5 → 10 → 15）。
+//  ・硬度1ブロックは各ステージに十分数を配置。加えて MIN_SOFT_BLOCKS による
+//    最低保証（不足時は最も硬いブロックを硬度1へ格下げ）が保険として働く。
 const STAGES = [
-{ id:1, grid:[
-  [1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1],
-  [1,1,1,1,1,1,1,1,1,1],
-]},
-{ id:2, grid:[
-  [1,0,1,0,1,1,0,1,0,1],
-  [0,1,0,1,0,0,1,0,1,0],
-  [1,0,1,0,1,1,0,1,0,1],
-  [0,1,0,1,0,0,1,0,1,0],
-  [1,0,1,0,1,1,0,1,0,1],
-]},
-{ id:3, grid:[
-  [0,0,0,0,5,5,0,0,0,0],
-  [0,0,0,1,1,1,1,0,0,0],
+{ id:1, grid:[   // 導入：全て硬度1。角を空けた丸い配置
   [0,0,1,1,1,1,1,1,0,0],
   [0,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,1,1,1,1,1,0],
+  [0,0,1,1,1,1,1,1,0,0],
 ]},
-{ id:4, grid:[
-  [5,1,0,0,0,0,0,0,1,5],
-  [5,1,0,0,0,0,0,0,1,5],
-  [5,1,1,1,1,1,1,1,1,5],
-  [1,1,1,1,1,1,1,1,1,1],
-  [0,1,1,1,5,5,1,1,1,0],
+{ id:2, grid:[   // 全て硬度1。左右に空き列を作った縦じま配置
+  [1,1,0,1,1,1,1,0,1,1],
+  [1,1,0,1,1,1,1,0,1,1],
+  [1,1,0,1,1,1,1,0,1,1],
+  [1,1,0,1,1,1,1,0,1,1],
 ]},
-{ id:5, grid:[
-  [0,10,0,0,10,10,0,0,10,0],
+{ id:3, grid:[   // 硬度5を上部の2点だけ導入。土台は硬度1
+  [0,5,0,1,1,1,1,0,5,0],
+  [1,1,1,1,0,0,1,1,1,1],
   [1,1,1,1,1,1,1,1,1,1],
-  [1,5,1,1,5,5,1,1,5,1],
-  [1,1,1,1,1,1,1,1,1,1],
-  [5,1,1,1,1,1,1,1,1,5],
-  [1,1,1,1,1,1,1,1,1,1],
+  [0,1,1,1,0,0,1,1,1,0],
 ]},
-{ id:6, grid:[
-  [10,1,0,0,1,5,0,0,1,10],
-  [1,5,1,0,0,1,5,0,0,1],
-  [0,1,5,1,0,0,1,5,0,0],
-  [0,0,1,5,1,0,0,1,5,0],
-  [1,0,0,1,5,1,0,0,1,5],
-  [5,1,0,0,1,5,1,0,0,1],
+{ id:4, grid:[   // 硬度5を四隅＋中央に。中央に空洞を作り占有を抑える
+  [5,0,1,1,0,0,1,1,0,5],
+  [0,1,1,1,1,1,1,1,1,0],
+  [1,1,1,5,0,0,5,1,1,1],
+  [0,1,1,1,1,1,1,1,1,0],
+  [5,0,1,1,0,0,1,1,0,5],
 ]},
-{ id:7, grid:[
+{ id:5, grid:[   // 硬度10を初登場（四隅）。中央を空洞に
+  [10,0,1,1,0,0,1,1,0,10],
+  [0,1,5,1,1,1,1,5,1,0],
+  [1,1,1,1,0,0,1,1,1,1],
+  [0,1,5,1,1,1,1,5,1,0],
+  [10,0,1,1,0,0,1,1,0,10],
+]},
+{ id:6, grid:[   // 硬度10を四隅に。中央空洞つきの5・10・1三層
+  [10,0,5,1,0,0,1,5,0,10],
+  [0,1,1,1,1,1,1,1,1,0],
+  [1,1,5,1,0,0,1,5,1,1],
+  [0,1,1,1,1,1,1,1,1,0],
+  [10,0,5,1,0,0,1,5,0,10],
+]},
+{ id:7, grid:[   // 中央を空洞にした“アーチ”。硬い外殻・柔らかい縁
   [1,1,5,10,10,10,10,5,1,1],
   [1,5,1,0,0,0,0,1,5,1],
   [5,1,0,0,0,0,0,0,1,5],
-  [5,1,0,0,0,0,0,0,1,5],
   [1,5,1,0,0,0,0,1,5,1],
   [1,1,5,1,1,1,1,5,1,1],
 ]},
-{ id:8, grid:[
-  [1,1,1,1,1,1,1,1,1,1],
-  [10,10,10,10,10,10,10,10,10,10],
-  [0,0,0,0,0,0,0,0,0,0],
-  [1,5,1,5,1,1,5,1,5,1],
-  [1,1,1,1,1,1,1,1,1,1],
-  [5,1,1,1,5,5,1,1,1,5],
-]},
-{ id:9, grid:[
-  [10,1,5,1,10,10,1,5,1,10],
-  [1,5,1,5,1,1,5,1,5,1],
-  [5,1,5,1,5,5,1,5,1,5],
-  [1,5,1,5,1,1,5,1,5,1],
-  [10,1,5,1,10,10,1,5,1,10],
-  [1,1,1,1,1,1,1,1,1,1],
-]},
-{ id:10, grid:[
-  [15,15,0,0,15,15,0,0,15,15],
-  [10,10,10,10,10,10,10,10,10,10],
-  [1,1,5,1,1,1,1,5,1,1],
-  [5,1,1,1,5,5,1,1,1,5],
-  [1,1,1,5,1,1,5,1,1,1],
+{ id:8, grid:[   // 硬度15を初登場（上部2点のみ）。中央に空洞
+  [1,1,0,15,0,0,15,0,1,1],
   [1,5,1,1,1,1,1,1,5,1],
+  [0,1,1,10,0,0,10,1,1,0],
+  [1,5,1,1,1,1,1,1,5,1],
+  [1,1,0,5,0,0,5,0,1,1],
 ]},
-{ id:11, grid:[
-  [15,10,10,10,15,15,10,10,10,15],
-  [10,0,0,0,0,0,0,0,0,10],
-  [10,0,5,5,5,5,5,5,0,10],
-  [10,0,5,1,1,1,1,5,0,10],
-  [10,0,5,5,5,5,5,5,0,10],
-  [10,0,0,0,0,0,0,0,0,10],
-  [1,1,1,1,1,1,1,1,1,1],
+{ id:9, grid:[   // 1・5・10・15が混在。四隅と中央を空洞に
+  [10,0,5,1,0,0,1,5,0,10],
+  [0,1,1,5,1,1,5,1,1,0],
+  [5,1,0,1,10,10,1,0,1,5],
+  [0,1,1,5,1,1,5,1,1,0],
+  [10,0,5,1,0,0,1,5,0,10],
 ]},
-{ id:12, grid:[
-  [15,15,15,10,5,1,0,0,0,0],
-  [15,10,10,5,1,0,0,0,1,1],
-  [10,10,5,1,0,0,0,1,5,5],
-  [10,5,1,0,0,0,1,5,10,10],
-  [5,1,0,0,0,1,5,10,15,15],
-  [1,1,1,1,1,1,1,1,1,1],
+{ id:10, grid:[  // 四隅を硬度15/10で固める。上下と中央を空洞に
+  [15,0,10,1,0,0,1,10,0,15],
+  [0,1,1,1,5,5,1,1,1,0],
+  [1,1,5,1,0,0,1,5,1,1],
+  [0,1,1,1,5,5,1,1,1,0],
+  [15,0,10,1,0,0,1,10,0,15],
 ]},
-{ id:13, grid:[
-  [5,10,15,15,10,10,15,15,10,5],
-  [10,1,0,0,1,1,0,0,1,10],
-  [15,0,5,5,0,0,5,5,0,15],
-  [15,0,5,5,0,0,5,5,0,15],
-  [10,1,0,0,1,1,0,0,1,10],
-  [5,10,15,15,10,10,15,15,10,5],
+{ id:11, grid:[  // 硬度が外周ほど高い“中空ダイヤ”。下段に柔らかい土台
+  [0,0,0,10,15,15,10,0,0,0],
+  [0,0,10,5,1,1,5,10,0,0],
+  [0,10,5,1,1,1,1,5,10,0],
+  [1,5,1,1,1,1,1,1,5,1],
+  [1,1,1,1,0,0,1,1,1,1],
 ]},
-{ id:14, grid:[
-  [15,15,10,15,15,15,15,10,15,15],
-  [10,5,10,10,5,5,10,10,5,10],
-  [15,10,1,5,10,10,5,1,10,15],
-  [5,10,5,1,0,0,1,5,10,5],
-  [10,15,10,5,1,1,5,10,15,10],
-  [1,5,1,10,5,5,10,1,5,1],
-  [5,1,5,1,1,1,1,5,1,5],
+{ id:12, grid:[  // 両袖を硬度15/10の柱に。中央は大きな空洞
+  [15,10,1,0,0,0,0,1,10,15],
+  [10,1,0,5,1,1,5,0,1,10],
+  [1,1,5,1,0,0,1,5,1,1],
+  [10,1,0,5,1,1,5,0,1,10],
+  [15,10,1,0,0,0,0,1,10,15],
 ]},
-{ id:15, grid:[
-  [15,15,15,15,15,15,15,15,15,15],
-  [15,10,10,10,10,10,10,10,10,15],
-  [15,10,5,5,0,0,5,5,10,15],
-  [15,10,5,0,15,15,0,5,10,15],
-  [15,10,5,5,0,0,5,5,10,15],
-  [15,10,10,10,10,10,10,10,10,15],
-  [5,5,5,5,5,5,5,5,5,5],
+{ id:13, grid:[  // 硬度の“縦柱”を等間隔に。柱の間と中央を空洞に
+  [15,1,10,0,15,15,0,10,1,15],
+  [10,1,5,1,0,0,1,5,1,10],
+  [5,1,1,0,0,0,0,1,1,5],
+  [10,1,5,1,0,0,1,5,1,10],
+  [15,1,10,0,15,15,0,10,1,15],
+]},
+{ id:14, grid:[  // 上下を硬い外殻に。中央は15コア＋大きな空洞
+  [15,10,5,0,0,0,0,5,10,15],
+  [10,1,1,1,0,0,1,1,1,10],
+  [5,1,1,15,0,0,15,1,1,5],
+  [10,1,1,1,0,0,1,1,1,10],
+  [15,10,5,0,0,0,0,5,10,15],
+]},
+{ id:15, grid:[  // ラスボス：外殻を最硬に。中央は空洞＋柔らかい土台で必ず突破口あり
+  [15,15,10,5,0,0,5,10,15,15],
+  [15,1,1,1,0,0,1,1,1,15],
+  [10,1,5,0,0,0,0,5,1,10],
+  [15,1,1,1,0,0,1,1,1,15],
+  [15,15,10,5,0,0,5,10,15,15],
 ]},
 ];
 
@@ -801,6 +796,30 @@ function updateHUD(){
   lifeBox.innerHTML = balls || '<span style="font-size:12px;color:#7ba3c6;">なし</span>';
 }
 
+//------------------------------------------------ 硬度1ブロックの見た目（バンド色）を行から決定
+function softColorForRow(row){
+  const idx = ((row % BAND_COLORS.length) + BAND_COLORS.length) % BAND_COLORS.length;
+  return BAND_COLORS[idx];
+}
+
+//------------------------------------------------ 硬度1ブロックの最低保証
+// 盤面生成後に硬度1ブロックが MIN_SOFT_BLOCKS 未満なら、最も硬いブロックから
+// 順に硬度1へ格下げして必ず一定数を確保する（＝「壊れなさ過ぎ」を防止）。
+function ensureMinSoftBlocks(){
+  let soft = 0;
+  for(const b of blocks) if(b.maxHp === 1) soft++;
+  if(soft >= MIN_SOFT_BLOCKS) return;
+  // 硬いブロックを硬度の高い順に並べ、不足分だけ硬度1へ変換する
+  const hard = blocks.filter(b => b.maxHp > 1).sort((a,b) => b.maxHp - a.maxHp);
+  for(const b of hard){
+    if(soft >= MIN_SOFT_BLOCKS) break;
+    b.hp = 1; b.maxHp = 1;
+    const row = Math.round((b.y - BLOCK_TOP) / (BLOCK_H + BLOCK_GAP));
+    b.color = softColorForRow(row);
+    soft++;
+  }
+}
+
 //------------------------------------------------ ステージ構築
 function buildStage(idx){
   blocks = [];
@@ -818,6 +837,7 @@ function buildStage(idx){
       });
     }
   }
+  ensureMinSoftBlocks();   // 硬度1ブロックの最低保証を適用
   items = []; bullets = []; particles = [];
   attachBall();
   updateHUD();
@@ -1322,7 +1342,7 @@ function drawPaddle(){
       }
     }
   } else {
-    // --- 通常時：従来の銀色バー ---
+    // --- 通常時:従来の銀色バー ---
     const g = ctx.createLinearGradient(0, py, 0, py+h);
     g.addColorStop(0, "#ffffff");
     g.addColorStop(.3, "#dde3e9");
