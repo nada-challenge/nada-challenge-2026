@@ -859,5 +859,29 @@ window.NADA_DATA = {
       },
     },
 
+    /* --- 判断待ち：2025サイトには掲載があるが今年度アンケートに回答行が無い3件 ---
+       掲載する場合は下のコメントを外し、desc を実データに差し替えてください。
+    {
+      slug: "incubation-studio-sowelu",
+      name: "Incubation Studio SoWelu",
+      category: "other",
+    },
+    {
+      slug: "monte702",
+      name: "monte702",
+      category: "other",
+    },
+    {
+      slug: "kick-arts-taekwondo-nada",
+      name: "キックアーツテコンドーなだ王子道場",
+      category: "other",
+    },
+    --- ここまで --- */
+
+  ],
+
+  /* ▼ 協賛企業一覧（旧ファイルから引き継ぎ。決まり次第ここに追記）
+       例: { name: "◯◯株式会社", url: "https://example.com" }        */
+  sponsors: [
   ]
 };
