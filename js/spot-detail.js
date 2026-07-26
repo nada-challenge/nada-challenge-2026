@@ -1,863 +1,181 @@
 /* ============================================================
-   灘チャレンジ2026 スポットデータ
+   灘チャレンジ2026 スポット詳細ページ生成
    ------------------------------------------------------------
-   このファイルが店舗情報の唯一の実体です。
-   店舗の追加・修正・削除は、すべてこのファイルを編集してください。
-   HTML（spot.html / spot-detail.html）は編集不要です。
+   spot-detail.html 専用のスクリプト。
+   URL の ?slug=◯◯ を読み取り、js/spots-data.js（window.NADA_DATA）
+   から該当スポットを探してページ各所に流し込む。
 
-   ■ 読み込み順
-     spots-data.js（このファイル）→ main.js / spot-detail.js
+   ★ 任意項目（caption / body / info / mapQuery / message）は、
+     データがある店だけ表示。無ければ既存の「準備中」表示のまま。
+   ★ 読み込み順は spots-data.js → spot-detail.js（このファイル）
+     の順であること（spot-detail.html はその順で読み込み済み）。
 
-   ■ カテゴリ
-     spot.html の data-filter と完全に一致させること。
-     restaurant / food / apparel / medical / other の5種のみ。
-
-   ■ 写真
-     img/shop/{slug}.jpg に置くと自動で表示されます。
-     ファイルが無い場合はカテゴリ名のフォールダーが出ます（正常動作）。
-     例：cafe-de-gion → img/shop/cafe-de-gion.jpg
-
-   ■ 使えるキー
-     slug     … 必須。URL（spot-detail.html?slug=◯◯）になる。公開後は変更不可
-     name     … 必須。表示名
-     category … 必須。上記5種のいずれか
-     desc     … 一覧カードの一言コメント
-     body     … 詳細ページ「どんなところ？」の本文（文字列 or 配列）
-     info     … { address, tel, hours, holiday, web } すべて任意
-     message  … 詳細ページ「灘チャレンジとのつながり」（任意）
-     caption  … 写真キャプション（任意）
-     zip / price / wheelchair … 保持のみ。現状は画面に出ません
-
-   ■ 出所
-     「灘チャレンジ2026_協賛店舗情報_統合版.xlsx」2026協賛店舗_統合シート（全57件）
-     アンケートの「変更なし」は値ではなく無回答のため、キーごと省略しています。
-     TODO: と書かれた店舗は情報が未確定です。掲載前に確認してください。
+   ※ このファイルは「詳細ページを描画するコード」です。
+     店舗データ（spots-data.js）とは別物なので、
+     内容を上書きしないよう注意してください。
    ============================================================ */
-window.NADA_DATA = {
+(function () {
+  'use strict';
 
-  /* カテゴリ定義（キーは spot.html の data-filter と一致必須） */
-  categories: {
-    restaurant: "飲食店",
-    food: "食品販売",
-    apparel: "衣料・繊維・雑貨",
-    medical: "医療・福祉",
-    other: "その他",
-  },
+  var data = window.NADA_DATA;
+  if (!data) return;
 
-  /* 掲載順：カテゴリ順 → カテゴリ内はアンケート回答順 */
-  spots: [
+  /* data属性で1要素を取得する小ヘルパー */
+  var q = function (attr) { return document.querySelector('[' + attr + ']'); };
 
-    /* ---------- 飲食店（11件） ---------- */
-    {
-      slug: "cafe-de-gion",
-      name: "カフェ・ドゥ・ギオン",
-      category: "restaurant",
-      desc: "商店街の真ん中、ゴリラが目印。自家製ケーキのセットが人気です。",
-      body: "商店街の真ん中、ゴリラが目印。自家製ケーキのセットが人気です。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3丁目4-2",
-        tel: "078-861-1259",
-        hours: "8:30-19:00(L.O.18:30)",
-        holiday: "水",
-      },
-    },
-    {
-      slug: "kushikatsu-funakoshi",
-      name: "串かつ船越",
-      category: "restaurant",
-      desc: "創業70年の老舗。秘伝のソースを味わって下さい。じゃがいもやチューリップが人気です。",
-      body: "創業70年の老舗。秘伝のソースを味わって下さい。じゃがいもやチューリップが人気です。",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町6-1-6",
-        tel: "078-802-1139",
-        hours: "平日 16:00-22:00 (L.O21:20) / 日祝 14:00-22:00 (L.O21:20)",
-        holiday: "月、第3火",
-      },
-      wheelchair: "事前に連絡があれば1台なら可能",
-    },
-    {
-      slug: "aratays",
-      name: "串天と創作家庭料理のお店あらたや",
-      category: "restaurant",
-      desc: "生まれ育った街、商売を続けさせてもらっている街。地域に住まれている皆様とコラボで、学生と地域住民とのつながりを存続させてくれています。",
-      body: "生まれ育った街、商売を続けさせてもらっている街。地域に住まれている皆様とコラボで、学生と地域住民とのつながりを存続させてくれています。",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町7丁目2-2",
-        tel: "078-861-3232",
-        hours: "17:30〜23:00",
-        holiday: "火曜日、第一日曜日",
-      },
-    },
-    {
-      slug: "nankintei-katase",
-      name: "南京亭かたせ",
-      category: "restaurant",
-      desc: "お昼はラーメンやカラアゲの定食、夜はおすすめの刺身や一品料理があります。旬の食材をそろえてお待ちしております。",
-      body: "お昼はラーメンやカラアゲの定食、夜はおすすめの刺身や一品料理があります。旬の食材をそろえてお待ちしております。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋1丁目1-4",
-        tel: "078-881-8554",
-        hours: "11:00-13:00 / 17:00-22:00",
-        holiday: "木曜日",
-      },
-    },
-    // TODO: 一言コメントが去年原稿への修正指示（「30年」→「30年以上」）。原稿の再取得が必要
-    {
-      slug: "mushiryori-hinoki",
-      name: "蒸し料理ひのき",
-      category: "restaurant",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6丁目5-9",
-        tel: "078-882-3441",
-        hours: "11:45-14:00（L.O.13:45）, 17:00-22:00（L.O.21:30）",
-        holiday: "水",
-      },
-    },
-    {
-      slug: "sakae-shokudo",
-      name: "栄食堂",
-      category: "restaurant",
-      desc: "毎日違うおかずを提供しています。おふくろのあじを食べにきてください。肉すい、ちゃんぽんが人気です。",
-      body: "毎日違うおかずを提供しています。おふくろのあじを食べにきてください。肉すい、ちゃんぽんが人気です。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋4-1-1",
-        tel: "078-861-4833",
-        hours: "朝5:40-14:00 / 夜17:00-21:00",
-        holiday: "年末年始",
-      },
-    },
-    {
-      slug: "oishi-ikkanro",
-      name: "大石一貫楼",
-      category: "restaurant",
-      desc: "阪神大石駅から500m、一度食べたらまた食べたい！手作りの中華料理店です。天津飯と自家製の特製味噌だれで食べる餃子がおすすめです。",
-      body: "阪神大石駅から500m、一度食べたらまた食べたい！手作りの中華料理店です。天津飯と自家製の特製味噌だれで食べる餃子がおすすめです。",
-      zip: "657-0044",
-      info: {
-        address: "兵庫県神戸市灘区鹿ノ下通2-3-10",
-        tel: "078-861-1438",
-        hours: "11:30-14:30, 16:30-19:00",
-        holiday: "水",
-      },
-    },
-    {
-      slug: "mado-cafe",
-      name: "まどカフェ",
-      category: "restaurant",
-      desc: "ドリンク、フード、スイーツと何でも揃ったレストランカフェです。カナディアンサンドやホットドック、じっくり煮込んだカレーが人気です。",
-      body: "ドリンク、フード、スイーツと何でも揃ったレストランカフェです。カナディアンサンドやホットドック、じっくり煮込んだカレーが人気です。",
-      zip: "657-0027",
-      info: {
-        address: "兵庫県神戸市灘区永手町4-2-1 フォレスタ六甲 1階",
-        tel: "078-200-5750",
-        hours: "10:00〜20:00",
-        holiday: "第1・3・5日曜日、第2・4火曜日",
-      },
-    },
-    {
-      slug: "ogiya",
-      name: "扇矢",
-      category: "restaurant",
-      desc: "店内丼物には手打ち讃岐ミニうどんがつきます。和食なのにボリューム満点！土日に特別価格で人気メニューを提供する予定です。",
-      body: "店内丼物には手打ち讃岐ミニうどんがつきます。和食なのにボリューム満点！土日に特別価格で人気メニューを提供する予定です。",
-      zip: "657-0023",
-      info: {
-        address: "兵庫県神戸市灘区高羽町5-5-22",
-        tel: "078-841-5374",
-        hours: "11:00-21:00",
-        holiday: "第1、第3 月、火（祝日時は翌日に振替）",
-      },
-    },
-    {
-      slug: "akachaya",
-      name: "あかちゃ家",
-      category: "restaurant",
-      desc: "癒しの空間と手作りの甘味でほっこりとしたお時間をお過ごしください。",
-      body: "癒しの空間と手作りの甘味でほっこりとしたお時間をお過ごしください。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋5-3-23",
-        tel: "078-805-2776",
-        hours: "12:00-19:30(7,8,9月は12:00-20:00)",
-        holiday: "月、第3日(変更の場合あり)",
-      },
-    },
-    // TODO: 電話番号が未回答
-    {
-      slug: "brasserie-a-route",
-      name: "brasserie_a_route",
-      category: "restaurant",
-      desc: "今年開業したクラフトビール屋です。一階の工場で醸造した新鮮なビールを2階で楽しめます。",
-      body: "今年開業したクラフトビール屋です。一階の工場で醸造した新鮮なビールを2階で楽しめます。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3丁目4-7",
-        hours: "17:30〜21:00（金土日は11:30〜16:00も営業）",
-        holiday: "月曜日",
-      },
-    },
+  /* category 内部名 → 表示名 */
+  var labelOf = function (cat) {
+    return (data.categories && data.categories[cat]) || 'その他';
+  };
 
-    /* ---------- 食品販売（12件） ---------- */
-    // TODO: 原本の住所は「水道橋3-5」。〒657-0831＝水道筋のため水道筋に補正済み。要確認
-    {
-      slug: "doi-seinikuten",
-      name: "土居精肉店",
-      category: "food",
-      desc: "純国産黒毛和牛雌牛を専門に取り扱ったお店です。ローストビーフや焼豚が特に人気。惣菜は全て無添加・無着色で作り上げています。",
-      body: "純国産黒毛和牛雌牛を専門に取り扱ったお店です。ローストビーフや焼豚が特に人気。惣菜は全て無添加・無着色で作り上げています。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3-5",
-        tel: "078-861-4648",
-        hours: "8:00〜18:30",
-        holiday: "水曜日",
-      },
-    },
-    {
-      slug: "marquise-kimuraya",
-      name: "マルキーズキムラヤ",
-      category: "food",
-      desc: "早朝から開いてます！カスクート、フランスパンが人気です。",
-      body: "早朝から開いてます！カスクート、フランスパンが人気です。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3丁目4-1",
-        tel: "078-861-0445",
-        hours: "6:00-19:00",
-        holiday: "月（月に2回火曜不定休）",
-      },
-    },
-    {
-      slug: "miyoshido-honpo",
-      name: "美吉堂本舗",
-      category: "food",
-      desc: "創業97年",
-      body: "創業97年",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3-19",
-        tel: "078-861-5495",
-        hours: "9:00-18:30",
-        holiday: "水",
-      },
-      price: "180〜",
-    },
-    {
-      slug: "kanefuku-kamaboko",
-      name: "かねふく蒲鉾店",
-      category: "food",
-      desc: "長い間、愛していただいてありがとうございます。震災後も遠くへ行かれた方が来店していただいて嬉しく思っております。",
-      body: "長い間、愛していただいてありがとうございます。震災後も遠くへ行かれた方が来店していただいて嬉しく思っております。",
-      zip: "657-0028",
-      info: {
-        address: "兵庫県神戸市灘区森後町2-1-15",
-        tel: "078-851-8214",
-        hours: "10:00〜18:30",
-        holiday: "日、月",
-      },
-      price: "140〜180円",
-    },
-    // TODO: 所在地が東灘区（灘区外）
-    {
-      slug: "pan-no-omise-ito",
-      name: "パンのお店ito",
-      category: "food",
-      desc: "60種類ほどの商品が並びます。フランスAOP認可の発酵バターを使用した香り高いクロワッサンが人気です。",
-      body: "60種類ほどの商品が並びます。フランスAOP認可の発酵バターを使用した香り高いクロワッサンが人気です。",
-      zip: "658-0046",
-      info: {
-        address: "兵庫県神戸市東灘区御影本町6-4-16",
-        tel: "078-891-5047",
-        hours: "8:00-19:00",
-        holiday: "日・月・火",
-      },
-      price: "250-600円",
-    },
-    {
-      slug: "bakery-nori",
-      name: "Bakery nori",
-      category: "food",
-      desc: "地域の皆様に毎日食べてもらえるような商品を作れるよう努力しています。クリームパン、食パン、フランスパンなどが人気です。",
-      body: "地域の皆様に毎日食べてもらえるような商品を作れるよう努力しています。クリームパン、食パン、フランスパンなどが人気です。",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町7丁目1-17 1F",
-        tel: "078-861-3616",
-        hours: "7:30〜19:00",
-        holiday: "日曜日、第二月曜日",
-      },
-    },
-    // TODO: 住所・電話が未確定（原本の住所欄が「あ」）。要ヒアリング
-    {
-      slug: "igami-sengyoten",
-      name: "井神鮮魚店",
-      category: "food",
-      desc: "灘区に創業して73年！水道筋に移店して1年余。新鮮な刺身、魚と揚物、煮魚、焼魚を販売中！",
-      body: "灘区に創業して73年！水道筋に移店して1年余。新鮮な刺身、魚と揚物、煮魚、焼魚を販売中！",
-      zip: "657-0831",
-      info: {
-        tel: "078-871-9570",
-        hours: "木〜月　10時〜19時",
-        holiday: "火、水",
-      },
-      wheelchair: "OK",
-    },
-    {
-      slug: "butamanya",
-      name: "ぶたまんや",
-      category: "food",
-      desc: "創業1957年、豚まんとシュウマイのテイクアウト専門店です。淡路産の玉葱、宮崎産の豚肉を使用。作り置きしないため限定数の販売となります。",
-      body: "創業1957年、豚まんとシュウマイのテイクアウト専門店です。淡路産の玉葱、宮崎産の豚肉を使用。作り置きしないため限定数の販売となります。",
-      zip: "657-0832",
-      info: {
-        address: "兵庫県神戸市灘区岸地通4-1-10 1F",
-        tel: "078-861-1541",
-        hours: "10:00〜売切次第終了",
-        holiday: "日曜に加えて水曜も定休日となっている",
-      },
-    },
-    {
-      slug: "nadashin-no-mochi",
-      name: "ナダシンの餅",
-      category: "food",
-      desc: "創業は昭和12年。安心安全なものを手ごろな値段で提供し続けています。おはぎやあべ川、大福などが定番商品です。",
-      body: "創業は昭和12年。安心安全なものを手ごろな値段で提供し続けています。おはぎやあべ川、大福などが定番商品です。",
-      zip: "657-0045",
-      info: {
-        address: "兵庫県神戸市灘区下河原通3-1-8",
-        tel: "078-881-1500",
-        hours: "7:00-18:30",
-        holiday: "不定休",
-      },
-    },
-    {
-      slug: "magic-pan-nada",
-      name: "マジックパン　灘店",
-      category: "food",
-      desc: "毎朝生たまごから作るタマゴサラダを使ったサンドイッチがおすすめです。都賀川が近いので、天気の良い日は川辺で食べると最高！",
-      body: "毎朝生たまごから作るタマゴサラダを使ったサンドイッチがおすすめです。都賀川が近いので、天気の良い日は川辺で食べると最高！",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町6丁目1-1",
-        tel: "078-801-9422",
-        hours: "7:00〜17:00",
-        holiday: "不定休",
-      },
-      price: "340-480円",
-      wheelchair: "利用できるが段あり",
-    },
-    {
-      slug: "sato-toufuten",
-      name: "佐藤とうふ店",
-      category: "food",
-      desc: "昭和4年開業。戦前の製法を遵守し『鳴門のにがり』で豆腐・油揚げを製造しております。木綿は大豆のコク、絹は大豆の甘みがあります。",
-      body: "昭和4年開業。戦前の製法を遵守し『鳴門のにがり』で豆腐・油揚げを製造しております。木綿は大豆のコク、絹は大豆の甘みがあります。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6丁目4-12-2",
-        tel: "078-801-5528",
-        hours: "平日10:00-19:30 / 土日祝10:00-19:00",
-        holiday: "火曜日",
-      },
-    },
-    {
-      slug: "bakery-shop-leman",
-      name: "ベーカリーショップレマン",
-      category: "food",
-      desc: "おじいさんとおばあさんでやってます！サンドイッチと辛口カレー、チョコパンダが人気。夏はあんバター塩がおすすめ！",
-      body: "おじいさんとおばあさんでやってます！サンドイッチと辛口カレー、チョコパンダが人気。夏はあんバター塩がおすすめ！",
-      zip: "657-0837",
-      info: {
-        address: "兵庫県神戸市灘区原田通2丁目2-3",
-        tel: "078-881-8157",
-        hours: "7:30-19:00 or -20:00",
-        holiday: "水曜日",
-      },
-      price: "200-270円",
-    },
+  /* 文字列 or 配列 → 段落（<p>）の配列に正規化 */
+  var toParagraphs = function (val) {
+    if (Array.isArray(val)) return val.filter(function (s) { return String(s).trim() !== ''; });
+    return String(val).split(/\n{2,}|\n/).filter(function (s) { return s.trim() !== ''; });
+  };
+  var fillParagraphs = function (el, val) {
+    el.innerHTML = '';
+    toParagraphs(val).forEach(function (text) {
+      var p = document.createElement('p');
+      p.textContent = text;
+      el.appendChild(p);
+    });
+  };
 
-    /* ---------- 衣料・繊維・雑貨（6件） ---------- */
-    {
-      slug: "hotto-hanataba",
-      name: "ほっと花たば",
-      category: "apparel",
-      desc: "NPO法人花たばのアンテナショップ。リサイクルバザー用品や手作り作品の委託販売をしています。掘り出し物を見つけに是非お立ち寄りください。",
-      body: "NPO法人花たばのアンテナショップ。リサイクルバザー用品や手作り作品の委託販売をしています。掘り出し物を見つけに是非お立ち寄りください。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3丁目1",
-        tel: "078-855-7926",
-        hours: "月〜土 10:00～16:00、第1・3日曜日 10:00～16:00",
-        holiday: "第2・4・5日曜日",
-      },
-    },
-    {
-      slug: "recycle-shop-atsuki",
-      name: "リサイクルショップあつき",
-      category: "apparel",
-      desc: "リサイクルショップです。ノーブランドでも買取りします。良い物を安くをモットーに頑張ってます。お片づけのお手伝いしますヨ。",
-      body: "リサイクルショップです。ノーブランドでも買取りします。良い物を安くをモットーに頑張ってます。お片づけのお手伝いしますヨ。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3-4-10",
-        tel: "078-805-3456",
-        hours: "11:00〜16:00",
-        holiday: "日、月、水",
-      },
-      wheelchair: "不可",
-    },
-    {
-      slug: "emiya-yofukuten",
-      name: "ゑみや洋服店",
-      category: "apparel",
-      desc: "オーダーセレクトショップです。スーツ、ジャケット、シャツなどビジネスウェアをオーダーでご提案します。オーダースーツのお仕立ては55,000円(税別)〜。",
-      body: "オーダーセレクトショップです。スーツ、ジャケット、シャツなどビジネスウェアをオーダーでご提案します。オーダースーツのお仕立ては55,000円(税別)〜。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋4-1-18",
-        tel: "078-861-1147/0120-86-2917",
-        hours: "10:00-19:00",
-        holiday: "水",
-      },
-    },
-    {
-      slug: "flying-frog-kobe-abc",
-      name: "FLYING FROG KOBE ABC",
-      category: "apparel",
-      desc: "神戸市灘区水道筋にあるアメカジショップです。男女問わず幅広い年齢層のお客様にファッションを楽しんで頂けるようなセレクト、スタイルの提案を心掛けています。",
-      body: "神戸市灘区水道筋にあるアメカジショップです。男女問わず幅広い年齢層のお客様にファッションを楽しんで頂けるようなセレクト、スタイルの提案を心掛けています。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6丁目2-3",
-        tel: "078-801-8828",
-        hours: "11:00-20:00",
-        holiday: "なし",
-      },
-    },
-    {
-      slug: "kobo-ichi",
-      name: "工房壱",
-      category: "apparel",
-      desc: "刻印付の革小物が人気です。",
-      body: "刻印付の革小物が人気です。",
-      zip: "657-0045",
-      info: {
-        address: "兵庫県神戸市灘区下河原通3-1-6 1F",
-        tel: "078-766-9067",
-        hours: "11:00-18:00",
-        holiday: "日曜日＋不定休に変更",
-      },
-    },
-    {
-      slug: "nakajima-futonten",
-      name: "中島布団店",
-      category: "apparel",
-      desc: "創業百余年。人生1/3お布団の中！当店が快適にお手伝いいたします。お電話いただければすぐにお伺い致します。",
-      body: "創業百余年。人生1/3お布団の中！当店が快適にお手伝いいたします。お電話いただければすぐにお伺い致します。",
-      zip: "657-0826",
-      info: {
-        address: "兵庫県神戸市灘区倉石通1-2-15",
-        tel: "078-861-2672",
-        hours: "10:00-18:00",
-        holiday: "火曜日",
-      },
-    },
+  /* --- URL から slug を取得して該当スポットを探す --- */
+  var slug = new URLSearchParams(window.location.search).get('slug');
+  var spots = data.spots || [];
+  var spot = null;
+  for (var i = 0; i < spots.length; i++) {
+    if (spots[i].slug === slug) { spot = spots[i]; break; }
+  }
 
-    /* ---------- 医療・福祉（7件） ---------- */
-    {
-      slug: "kanazawa-hospital",
-      name: "金沢病院",
-      category: "medical",
-      desc: "内科、外科、整形外科、放射線科、眼科など多岐にわたり診療をしております。昭和27年の開業以来、地域に根差した病院として取り組んでまいります。",
-      body: "内科、外科、整形外科、放射線科、眼科など多岐にわたり診療をしております。昭和27年の開業以来、地域に根差した病院として取り組んでまいります。",
-      zip: "657-0057",
-      info: {
-        address: "兵庫県神戸市灘区神ノ木通4丁目2-15",
-        tel: "078-871-9001",
-        hours: "平日9:00-17:15、土9:00-13:00",
-        holiday: "日・祝",
-      },
-    },
-    {
-      slug: "npo-hanataba",
-      name: "NPO法人 花たば",
-      category: "medical",
-      desc: "高齢者共同住宅の運営をしております。会員どうしの暮らしの助け合いもしています。困ったときは気軽にご相談下さい。",
-      body: "高齢者共同住宅の運営をしております。会員どうしの暮らしの助け合いもしています。困ったときは気軽にご相談下さい。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6-7-14",
-        tel: "078-801-6632",
-        hours: "9:00〜17:00 ※日曜、祝日は9:00〜13:00",
-        holiday: "なし",
-      },
-    },
-    {
-      slug: "sawada-shika",
-      name: "さわだ歯科",
-      category: "medical",
-      desc: "歯の健康のためにぜひご利用ください。神戸市大学生無料歯科検診も実施しています。",
-      body: "歯の健康のためにぜひご利用ください。神戸市大学生無料歯科検診も実施しています。",
-      zip: "657-0051",
-      info: {
-        address: "兵庫県神戸市灘区八幡町4丁目5-8",
-        tel: "078-861-2565",
-        hours: "平日9:30〜13:00, 14:30〜18:00 / 土9:30〜13:00, 14:30〜17:00",
-        holiday: "木、日祝",
-      },
-    },
-    // TODO: 電話番号・営業時間・定休日が未回答
-    {
-      slug: "rokko-iryo-seikyo",
-      name: "ろっこう医療生活協同組合",
-      category: "medical",
-      desc: "地域のみなさんの健康づくりをサポートします。医療や介護でのサポートはもちろん、運動や疾病予防のための学習、仲間づくりなど組合員活動も行っています。",
-      body: "地域のみなさんの健康づくりをサポートします。医療や介護でのサポートはもちろん、運動や疾病予防のための学習、仲間づくりなど組合員活動も行っています。",
-      zip: "657-0825",
-      info: {
-        address: "兵庫県神戸市灘区中原通2-2-1",
-      },
-    },
-    {
-      slug: "mominoki-animal-hospital",
-      name: "もみの木動物病院",
-      category: "medical",
-      desc: "動物のしつけ、歯科治療について力を入れております。動物をお家に迎えてからお年寄りになるまで、人と動物の心豊かな生活をサポートいたします。",
-      body: "動物のしつけ、歯科治療について力を入れております。動物をお家に迎えてからお年寄りになるまで、人と動物の心豊かな生活をサポートいたします。",
-      zip: "657-0834",
-      info: {
-        address: "兵庫県神戸市灘区泉通4-5-13",
-        tel: "078-861-2243",
-        hours: "9:00-11:30 / 16:00-18:30(受付予約制)",
-        holiday: "年末年始(12/30午後〜1/3)",
-      },
-    },
-    {
-      slug: "yotsuba-pharmacy",
-      name: "よつば薬局",
-      category: "medical",
-      desc: "オープンして27年目の薬局です。全ての病医院からの処方箋に対応、在宅療養の方には薬剤師がご自宅まで伺います。お薬のことは何でもご相談ください。",
-      body: "オープンして27年目の薬局です。全ての病医院からの処方箋に対応、在宅療養の方には薬剤師がご自宅まで伺います。お薬のことは何でもご相談ください。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6丁目5-11",
-        tel: "078-805-5334",
-        hours: "月火水金9:00-19:30 / 木9:00-17:00 / 土9:00-13:00",
-        holiday: "日祝、土曜午後",
-      },
-    },
-    {
-      slug: "ogawa-naika-clinic",
-      name: "おがわ内科クリニック",
-      category: "medical",
-      desc: "地域密着型の小さいクリニックです。お気軽にご相談ください。",
-      body: "地域密着型の小さいクリニックです。お気軽にご相談ください。",
-      zip: "657-0835",
-      info: {
-        address: "兵庫県神戸市灘区灘北通10-1-3-101",
-        tel: "078-805-3282",
-        hours: "9:00-12:00 / 16:00-19:00",
-        holiday: "木、日、祝、土曜午後",
-      },
-    },
+  /* ====== スポットが見つからない場合 ====== */
+  if (!spot) {
+    document.title = 'スポットが見つかりません | 灘チャレンジ2026';
+    var nameNF = q('data-spot-name');
+    if (nameNF) nameNF.textContent = 'スポットが見つかりませんでした';
+    var crumbNF = q('data-spot-crumb');
+    if (crumbNF) crumbNF.textContent = '見つかりません';
+    var bodyNF = q('data-spot-body');
+    if (bodyNF) {
+      bodyNF.innerHTML = '';
+      var pNF = document.createElement('p');
+      pNF.className = 'spot-info__empty';
+      pNF.textContent = 'お探しのスポットは見つかりませんでした。一覧からお選びください。';
+      bodyNF.appendChild(pNF);
+    }
+    return;
+  }
 
-    /* ---------- その他（21件） ---------- */
-    // TODO: 定休日が未回答
-    {
-      slug: "kotobuki-kensetsu-union",
-      name: "株式会社寿建設労働者ユニオン",
-      category: "other",
-      desc: "「地域と共に！ 全ての人と共に！」をキャッチフレーズに地域の仲間を応援します。地域の便利屋さんと思っていますので、お気軽にご相談ください。",
-      body: "「地域と共に！ 全ての人と共に！」をキャッチフレーズに地域の仲間を応援します。地域の便利屋さんと思っていますので、お気軽にご相談ください。",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町3-1-19",
-        tel: "090-3617-2631",
-        hours: "24時間365日",
-      },
-    },
-    // TODO: 所在地が中央区（灘区外）
-    {
-      slug: "kobe-ymca-wellness",
-      name: "神戸YMCAファミリーウェルネスセンター",
-      category: "other",
-      desc: "スイミングプール、体育室、プレイルームがあるスポーツセンターです。こどもたちの心と身体がバランスよく育ちます。",
-      body: "スイミングプール、体育室、プレイルームがあるスポーツセンターです。こどもたちの心と身体がバランスよく育ちます。",
-      zip: "651-0072",
-      info: {
-        address: "兵庫県神戸市中央区脇浜町2丁目10-21",
-        tel: "078-241-7202",
-        hours: "平日10:00〜19:30、土10:00〜18:00、日10:00〜15:30",
-        holiday: "木",
-      },
-      price: "4000〜9000円",
-    },
-    {
-      slug: "autozam-nada",
-      name: "合資会社今井商会　オートザム灘",
-      category: "other",
-      desc: "新車販売から車の整備まで、愛車のホームドクターとして地域に密着したカーショップ。親切・丁寧・安心がモットーの整備士が幅広く対応します。",
-      body: "新車販売から車の整備まで、愛車のホームドクターとして地域に密着したカーショップ。親切・丁寧・安心がモットーの整備士が幅広く対応します。",
-      zip: "657-0832",
-      info: {
-        address: "兵庫県神戸市灘区岸地通2-3-8",
-        tel: "078-801-4705",
-        hours: "9:00〜18:00",
-        holiday: "日、祝、第1土",
-      },
-    },
-    {
-      slug: "hirooka",
-      name: "株式会社　広岡",
-      category: "other",
-      desc: "水道筋ひだまり商店街入口の角で賃貸マンションを営んでおります。「笑顔で挨拶の家主さん！」をモットーに、安心ある住居の提供を心がけております。",
-      body: "水道筋ひだまり商店街入口の角で賃貸マンションを営んでおります。「笑顔で挨拶の家主さん！」をモットーに、安心ある住居の提供を心がけております。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋6-7-3",
-        tel: "078-861-4448",
-        hours: "10:00-17:00",
-        holiday: "不定休",
-      },
-    },
-    // TODO: 電話番号・定休日が未回答
-    {
-      slug: "mochi-books",
-      name: "施設図書館　mochi books",
-      category: "other",
-      desc: "街の部室みたいなイメージでやってます。いい出会いがいくつもある街の一助になれたらと思っています。",
-      body: "街の部室みたいなイメージでやってます。いい出会いがいくつもある街の一助になれたらと思っています。",
-      zip: "657-0059",
-      info: {
-        address: "兵庫県神戸市灘区篠原南町6-1-10 グランビア灘20-E",
-        hours: "不定のため随時SNSで発信しております",
-      },
-    },
-    {
-      slug: "motomura-unso",
-      name: "有限会社本村運送",
-      category: "other",
-      desc: "創業58年。プライベートも大切にできる会社です。",
-      body: "創業58年。プライベートも大切にできる会社です。",
-      zip: "657-0026",
-      info: {
-        address: "兵庫県神戸市灘区弓木町3-1",
-        tel: "078-851-5876",
-        hours: "9:00〜18:00",
-        holiday: "日曜日、祝日",
-      },
-    },
-    {
-      slug: "easy-pro",
-      name: "印刷工房イージープロ",
-      category: "other",
-      desc: "認め印は最短30分で作れます。名刺などの印刷物もお任せください。実はHPも作れます。",
-      body: "認め印は最短30分で作れます。名刺などの印刷物もお任せください。実はHPも作れます。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋1-41",
-        tel: "078-861-2925",
-        hours: "10:00-19:00",
-        holiday: "日曜日、第2月曜日、第4月曜日",
-      },
-    },
-    {
-      slug: "ikarosu-no-mori",
-      name: "イカロスの森",
-      category: "other",
-      desc: "手作り劇場の温かみが喜ばれているようです。",
-      body: "手作り劇場の温かみが喜ばれているようです。",
-      zip: "657-0832",
-      info: {
-        address: "兵庫県神戸市灘区岸地通1-8-10",
-        tel: "090-3657-4778",
-        hours: "10:00-22:00",
-        holiday: "不定休",
-      },
-    },
-    {
-      slug: "power-megane",
-      name: "パワーメガネ",
-      category: "other",
-      desc: "30年近く灘区水道筋のメガネ専門店です。フレーム＋レンズ＋ケース＋メガネふきセット10,780円より。紫外線で色の変わるレンズも人気です。",
-      body: "30年近く灘区水道筋のメガネ専門店です。フレーム＋レンズ＋ケース＋メガネふきセット10,780円より。紫外線で色の変わるレンズも人気です。",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋5-2-3",
-        tel: "078-801-6630",
-        hours: "10:00〜19:00",
-        holiday: "火",
-      },
-    },
-    // TODO: 住所未確定（原本は掲載依頼文）。要ヒアリング
-    {
-      slug: "atelier-parfum",
-      name: "ヘアサロン　アトリエパルファン",
-      category: "other",
-      desc: "彫刻カットが有名で、着付けやメイクも行っているヘアサロンです！！舞台の方、和舞台の方などにも講演前によくご利用していただいております、門出などの特別な日だけでなく日常にもぜひご利用下さい",
-      body: "彫刻カットが有名で、着付けやメイクも行っているヘアサロンです！！舞台の方、和舞台の方などにも講演前によくご利用していただいております、門出などの特別な日だけでなく日常にもぜひご利用下さい",
-      zip: "657-0029",
-      info: {
-        tel: "078-841-8309",
-        hours: "10:00〜18:00",
-        holiday: "水",
-      },
-    },
-    {
-      slug: "cloda",
-      name: "彫金教室CLODA",
-      category: "other",
-      desc: "あなたが考えたデザインを自分の手でシルバーや真鍮を使って現実の形に創り上げてみませんか？",
-      body: "あなたが考えたデザインを自分の手でシルバーや真鍮を使って現実の形に創り上げてみませんか？",
-      zip: "657-0065",
-      info: {
-        address: "兵庫県神戸市灘区宮山町2-8-11",
-        tel: "078-843-0034",
-        hours: "9:30〜16:00",
-        holiday: "不定休",
-      },
-    },
-    // TODO: 一言コメント・住所ともに未確定。要ヒアリング
-    {
-      slug: "akadama-sports",
-      name: "赤玉スポーツ",
-      category: "other",
-      zip: "657-0831",
-      info: {
-        tel: "078-801-6101",
-        hours: "9:00-19:00",
-        holiday: "火",
-      },
-    },
-    {
-      slug: "hair-salon-crese",
-      name: "ヘアサロンCRESE",
-      category: "other",
-      desc: "【見た目年齢をマイナス5歳にする】ためのヘアサロンです。美容師45万人中200人に1人だけが取得している【ヘアケアマイスター】のサロンです。",
-      body: "【見た目年齢をマイナス5歳にする】ためのヘアサロンです。美容師45万人中200人に1人だけが取得している【ヘアケアマイスター】のサロンです。",
-      zip: "657-0845",
-      info: {
-        address: "兵庫県神戸市灘区岩屋中町5-2-33 万葉ハイツ灘1階",
-        tel: "078-861-6226",
-        hours: "10:00〜17:00",
-        holiday: "月、隔週日",
-      },
-    },
-    // TODO: 一言コメントが去年原稿への修正指示（「創業107年」）。原稿の再取得が必要
-    {
-      slug: "mori-shoten",
-      name: "畳インテリア(資)森商店",
-      category: "other",
-      zip: "657-0831",
-      info: {
-        address: "兵庫県神戸市灘区水道筋3-14-2",
-        tel: "078-861-1297",
-        hours: "8:30-17:30",
-        holiday: "日",
-      },
-    },
-    {
-      slug: "sakoda-sekizai",
-      name: "迫田石材",
-      category: "other",
-      desc: "1965年創業、地元密着の石材店です。お墓ディレクター、終活カウンセラーが、わかりにくいお墓のことを丁寧に具体的にお答えします。",
-      body: "1965年創業、地元密着の石材店です。お墓ディレクター、終活カウンセラーが、わかりにくいお墓のことを丁寧に具体的にお答えします。",
-      zip: "657-0811",
-      info: {
-        address: "兵庫県神戸市灘区長峰台2-5",
-        tel: "078-881-4114",
-        hours: "8:30-17:00",
-        holiday: "月（祝日の場合は火）",
-      },
-    },
-    {
-      slug: "ichii-cycle",
-      name: "一井サイクル",
-      category: "other",
-      desc: "ヤマハ・ホンダ・スズキの正規販売代理店です。神戸の地形に合わせ、安全第一で調整をする、地域に寄り添った地元のバイク屋さんです！",
-      body: "ヤマハ・ホンダ・スズキの正規販売代理店です。神戸の地形に合わせ、安全第一で調整をする、地域に寄り添った地元のバイク屋さんです！",
-      zip: "657-0041",
-      info: {
-        address: "兵庫県神戸市灘区琵琶町1-1-5",
-        tel: "078-854-1236",
-        hours: "10:00〜19:00",
-        holiday: "木",
-      },
-    },
-    {
-      slug: "kobe-student-youth-center",
-      name: "神戸学生青年センター",
-      category: "other",
-      desc: "「平和・人権・環境・アジア」をキーワードに活動しています。3Fで「六甲奨学基金のための古本市」を常設開催中。売上はアジアからの留学生の奨学金になります。",
-      body: "「平和・人権・環境・アジア」をキーワードに活動しています。3Fで「六甲奨学基金のための古本市」を常設開催中。売上はアジアからの留学生の奨学金になります。",
-      zip: "657-0051",
-      info: {
-        address: "兵庫県神戸市灘区八幡町4-9-22",
-        tel: "078-891-3018",
-        hours: "9:00〜18:00",
-        holiday: "無休",
-      },
-    },
-    // TODO: 所在地が西宮市（灘区外）。2025サイト表記は「芦屋西宮市民法律事務所」
-    {
-      slug: "ashiya-law-office",
-      name: "芦屋弁護士事務所",
-      category: "other",
-      desc: "阪急西宮北口駅すぐ近くの法律事務所です。離婚、交通事故、相続といった個人の問題から企業のトラブル、倒産処理等まで幅広い事件を取り扱っています。",
-      body: "阪急西宮北口駅すぐ近くの法律事務所です。離婚、交通事故、相続といった個人の問題から企業のトラブル、倒産処理等まで幅広い事件を取り扱っています。",
-      zip: "662-0832",
-      info: {
-        address: "兵庫県西宮市甲風園1丁目8-1 5階 ゆとり生活館AMIS",
-        tel: "0798-68-3161",
-        hours: "平日9:30-12:00 / 13:00-17:00（時間外・土日祝の相談にも対応）",
-        holiday: "土日祝",
-      },
-    },
-    {
-      slug: "kobijutsu-arai",
-      name: "古美術新井",
-      category: "other",
-      desc: "学生の街、芸術の街、アートの灘で第1回から灘チャレンジに参加しております。",
-      body: "学生の街、芸術の街、アートの灘で第1回から灘チャレンジに参加しております。",
-      zip: "657-0836",
-      info: {
-        address: "兵庫県神戸市灘区原田通2丁目2-5",
-        tel: "090-3289-7913",
-        hours: "お問い合わせください",
-        holiday: "不定休",
-      },
-    },
-    // TODO: 郵便番号・営業時間・定休日が未回答。固定の所在地なし
-    {
-      slug: "support-station-nada",
-      name: "サポートステーション灘・つどいの家",
-      category: "other",
-      desc: "ひとりひとりが生活しやすい地域作りを目指し、デイサービス、ふれあい喫茶、子ども食堂、学習広場、健康マージャン教室、フードパントリーなどを行っています。",
-      body: "ひとりひとりが生活しやすい地域作りを目指し、デイサービス、ふれあい喫茶、子ども食堂、学習広場、健康マージャン教室、フードパントリーなどを行っています。",
-      info: {
-        tel: "090-3543-3292",
-      },
-    },
-    {
-      slug: "nada-kumin-hall",
-      name: "神戸市立灘区民ホール",
-      category: "other",
-      desc: "地域の皆様が気軽に楽しくご利用いただける公共施設です。文化芸術活動を中心に様々なイベントも！ご来館をお待ちしております！",
-      body: "地域の皆様が気軽に楽しくご利用いただける公共施設です。文化芸術活動を中心に様々なイベントも！ご来館をお待ちしております！",
-      zip: "657-0832",
-      info: {
-        address: "兵庫県神戸市灘区岸地通1-1-1",
-        tel: "078-802-8555",
-        hours: "平日・土 9:00〜21:00 / 日祝 9:00〜17:00",
-        holiday: "月",
-      },
-    },
+  var label = labelOf(spot.category);
 
-  ]
-};
+  /* ====== 1. タイトル・メタ（SEO） ====== */
+  document.title = spot.name + ' | 灘区おすすめスポット | 灘チャレンジ2026';
+  var metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute('content', spot.name + (spot.desc ? '｜' + spot.desc : '') + '（灘チャレンジ2026）');
+  var ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', spot.name + ' | 灘チャレンジ2026');
+  var ogDesc = document.querySelector('meta[property="og:description"]');
+  if (ogDesc && spot.desc) ogDesc.setAttribute('content', spot.desc);
+  var ogImg = document.querySelector('meta[property="og:image"]');
+  if (ogImg) ogImg.setAttribute('content', 'https://nadachallenge.com/img/shop/' + spot.slug + '.jpg');
+
+  /* ====== 2. 見出し・パンくず・カテゴリタグ ====== */
+  var nameEl = q('data-spot-name');
+  if (nameEl) nameEl.textContent = spot.name;
+
+  var crumb = q('data-spot-crumb');
+  if (crumb) crumb.textContent = spot.name;
+
+  var tag = q('data-spot-tag');
+  if (tag) { tag.textContent = label; tag.hidden = false; }
+
+  /* ====== 3. 外観写真（フォールバックつき） ====== */
+  var img = q('data-spot-img');
+  var frame = q('data-spot-hero');
+  var fallback = q('data-spot-fallback');
+  if (fallback) fallback.textContent = label;
+  if (img) {
+    img.src = 'img/shop/' + spot.slug + '.jpg';
+    img.alt = spot.name;
+    var showFallback = function () { if (frame) frame.classList.add('is-fallback'); };
+    img.addEventListener('error', showFallback);
+    if (img.complete && img.naturalWidth === 0) showFallback();
+  }
+
+  /* 写真キャプション（任意） */
+  var caption = q('data-spot-caption');
+  if (caption && spot.caption) {
+    caption.textContent = spot.caption;
+    caption.hidden = false;
+  }
+
+  /* ====== 4. 紹介文 body（任意・文字列でも配列でも可） ====== */
+  var body = q('data-spot-body');
+  if (body && spot.body) fillParagraphs(body, spot.body);
+
+  /* ====== 5. 店舗情報 info（任意） ====== */
+  var info = q('data-spot-info');
+  if (info && spot.info) {
+    var rows = [
+      ['住所', spot.info.address],
+      ['電話', spot.info.tel],
+      ['営業時間', spot.info.hours],
+      ['定休日', spot.info.holiday]
+    ];
+    var hasAny = rows.some(function (r) { return !!r[1]; }) || !!spot.info.web;
+    if (hasAny) {
+      info.innerHTML = '';
+      var dl = document.createElement('dl');
+      dl.className = 'spot-info__dl';
+      rows.forEach(function (r) {
+        if (!r[1]) return;
+        var dt = document.createElement('dt');
+        dt.className = 'spot-info__dt';
+        dt.textContent = r[0];
+        var dd = document.createElement('dd');
+        dd.className = 'spot-info__dd';
+        dd.textContent = r[1];
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      });
+      if (spot.info.web) {
+        var dtW = document.createElement('dt');
+        dtW.className = 'spot-info__dt';
+        dtW.textContent = 'Web';
+        var ddW = document.createElement('dd');
+        ddW.className = 'spot-info__dd';
+        var a = document.createElement('a');
+        a.href = spot.info.web;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = spot.info.web.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        ddW.appendChild(a);
+        dl.appendChild(dtW);
+        dl.appendChild(ddW);
+      }
+      info.appendChild(dl);
+    }
+  }
+
+  /* ====== 6. 灘チャレンジとのつながり message（任意） ====== */
+  var msgWrap = q('data-spot-message-wrap');
+  var msg = q('data-spot-message');
+  if (msgWrap && msg && spot.message) {
+    fillParagraphs(msg, spot.message);
+    msgWrap.hidden = false;
+  }
+
+  /* ====== 7. Googleマップ（任意・mapQuery か 住所から生成） ====== */
+  var mapWrap = q('data-spot-map-wrap');
+  var mapFrame = q('data-spot-map');
+  var mapLink = q('data-spot-map-link');
+  var mapQuery = spot.mapQuery || (spot.info && spot.info.address) || '';
+  if (mapWrap && mapFrame && mapQuery) {
+    var encoded = encodeURIComponent(mapQuery);
+    mapFrame.src = 'https://www.google.com/maps?q=' + encoded + '&output=embed';
+    if (mapLink) mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encoded;
+    mapWrap.hidden = false;
+  }
+})();
