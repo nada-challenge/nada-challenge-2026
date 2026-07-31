@@ -1450,17 +1450,43 @@ button {
 }
 
 /* ------------------------------------------------------------
-   28. スポットカードの虫眼鏡カーソル
-   通常＝実線の虫眼鏡／クリック中＝破線の虫眼鏡
-   13 13 はレンズ中心（＝クリック判定点）。2枚とも同座標に統一済み。
-   末尾の zoom-in は画像が読めなかった場合のフォールバック。
-   カーソルを持たない端末（スマホ・タブレット）では無効。
+   28. スポットカード：タップ／クリック時の虫眼鏡エフェクト
+   指やマウスで押した位置に実線の虫眼鏡が現れ、
+   破線の虫眼鏡が波紋のように広がって消える。
+   大きさを変えたい場合は .zoom-burst img の width/height と
+   left/top（その半分の負値）を書き換える。
 ------------------------------------------------------------ */
-@media (hover: hover) and (pointer: fine) {
-  .card-spot__link {
-    cursor: url('../img/cursor-zoom.png') 13 13, zoom-in;
-  }
-  .card-spot__link:active {
-    cursor: url('../img/cursor-zoom-active.png') 13 13, zoom-in;
-  }
+.zoom-burst {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.zoom-burst img {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  left: -80px;
+  top: -80px;
+  will-change: transform, opacity;
+}
+
+.zoom-burst__pop  { animation: zoomPop  560ms var(--ease-out) forwards; }
+.zoom-burst__ring { animation: zoomRing 560ms var(--ease-out) forwards; }
+
+@keyframes zoomPop {
+  0%   { transform: scale(0.35); opacity: 0; }
+  22%  { transform: scale(1);    opacity: 1; }
+  100% { transform: scale(1.12); opacity: 0; }
+}
+
+@keyframes zoomRing {
+  0%   { transform: scale(0.55); opacity: 0.85; }
+  100% { transform: scale(2.3);  opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoom-burst { display: none; }
 }
