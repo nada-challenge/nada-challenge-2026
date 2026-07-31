@@ -672,3 +672,71 @@
   }, { threshold: 0.15 });
   lines.forEach(function (el) { observer.observe(el); });
 })();
+
+/* ============================================================
+   スポットカード：タップ／クリック時の虫眼鏡エフェクト
+   押した位置に実線の虫眼鏡が出て、破線が波紋状に広がる。
+   詳細ページへの遷移は NAV_DELAY だけ待ってから実行する
+   （待たないと演出が見える前にページが切り替わるため）。
+============================================================ */
+(function () {
+  var DURATION  = 560;  // 演出の長さ(ms)。CSSのanimationと揃えること
+  var NAV_DELAY = 300;  // 遷移を遅らせる時間(ms)。0にすると即座に遷移
+
+  var reduced = window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 初回タップで画像が間に合わないのを防ぐため先読み
+  ['img/zoom-pop.png', 'img/zoom-ring.png'].forEach(function (src) {
+    var i = new Image(); i.src = src;
+  });
+
+  function findLink(target) {
+    if (!target || !target.closest) return null;
+    return target.closest('.card-spot__link');
+  }
+
+  function burst(x, y) {
+    var wrap = document.createElement('div');
+    wrap.className = 'zoom-burst';
+    wrap.style.left = x + 'px';
+    wrap.style.top  = y + 'px';
+
+    var ring = document.createElement('img');
+    ring.src = 'img/zoom-ring.png';
+    ring.alt = '';
+    ring.className = 'zoom-burst__ring';
+
+    var pop = document.createElement('img');
+    pop.src = 'img/zoom-pop.png';
+    pop.alt = '';
+    pop.className = 'zoom-burst__pop';
+
+    wrap.appendChild(ring);
+    wrap.appendChild(pop);
+    document.body.appendChild(wrap);
+
+    setTimeout(function () {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }, DURATION + 80);
+  }
+
+  // 押した瞬間に演出を出す
+  document.addEventListener('pointerdown', function (e) {
+    if (reduced || !findLink(e.target)) return;
+    burst(e.clientX, e.clientY);
+  }, { passive: true });
+
+  // 演出が見えるよう、遷移を少しだけ待つ
+  document.addEventListener('click', function (e) {
+    if (reduced || NAV_DELAY <= 0) return;
+    var link = findLink(e.target);
+    if (!link) return;
+    // 新しいタブで開く操作などは邪魔しない
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    var href = link.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    setTimeout(function () { window.location.href = href; }, NAV_DELAY);
+  });
+})();
