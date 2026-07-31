@@ -1448,3 +1448,19 @@ button {
   background: var(--color-navy);
   transform: scaleX(1);
 }
+
+/* ------------------------------------------------------------
+   28. スポットカードの虫眼鏡カーソル
+   通常＝実線の虫眼鏡／クリック中＝破線の虫眼鏡
+   13 13 はレンズ中心（＝クリック判定点）。2枚とも同座標に統一済み。
+   末尾の zoom-in は画像が読めなかった場合のフォールバック。
+   カーソルを持たない端末（スマホ・タブレット）では無効。
+------------------------------------------------------------ */
+@media (hover: hover) and (pointer: fine) {
+  .card-spot__link {
+    cursor: url('../img/cursor-zoom.png') 13 13, zoom-in;
+  }
+  .card-spot__link:active {
+    cursor: url('../img/cursor-zoom-active.png') 13 13, zoom-in;
+  }
+}
