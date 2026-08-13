@@ -24,7 +24,10 @@
         データは js/spots-data.js（window.NADA_DATA）に一元管理。
         ・[data-spots-render]    にスポットカードを描画
           - data-spots-limit="6" で先頭◯件のみ（トップページの抜粋用）
-          - data-spots-desc      があれば一言説明も表示（spot.html 用）
+          - data-spots-desc      が付いている＝全件一覧ページ（spot.html）。
+                                 見出しレベルの判定にのみ使用する。
+                                 カードに一言説明を出すかどうかは
+                                 下の SHOW_DESC_ON_CARD で制御すること。
           - data-spots-placeholder があれば末尾に「準備中」カードを追加
         ・[data-sponsors-render] に協賛企業を描画（空なら案内文を表示）
         ※ 後続モジュール（フェードイン・フィルター・画像フォールバック）
@@ -34,12 +37,18 @@
     var data = window.NADA_DATA;
     if (!data) return;
 
+    /* 一覧カードに一言説明（spot.desc）を表示するか。
+       false = 店舗情報は詳細ページ（spot-detail.html）でのみ見せる。
+       true に戻せば従来どおりカードにも説明文が出る。 */
+    var SHOW_DESC_ON_CARD = false;
+
     /* --- スポットカード --- */
     document.querySelectorAll('[data-spots-render]').forEach(function (grid) {
       var limit = parseInt(grid.getAttribute('data-spots-limit'), 10);
-      var withDesc = grid.hasAttribute('data-spots-desc');
+      var isFullList = grid.hasAttribute('data-spots-desc'); // 全件一覧ページか
+      var withDesc = isFullList && SHOW_DESC_ON_CARD;        // 実際に説明文を出すか
       var spots = isNaN(limit) ? data.spots : data.spots.slice(0, limit);
-      var nameTag = withDesc ? 'h2' : 'h3'; // 一覧ページは h2、抜粋は h3（既存マークアップ準拠）
+      var nameTag = isFullList ? 'h2' : 'h3'; // 一覧ページは h2、抜粋は h3（既存マークアップ準拠）
 
       spots.forEach(function (spot) {
         var label = data.categories[spot.category] || 'その他';
@@ -69,7 +78,8 @@
         grid.appendChild(card);
       });
 
-      /* 「準備中」カード（spot.html のみ） */
+      /* 「準備中」カード（spot.html のみ）
+         説明文は他カードと足並みを揃えて出さない。 */
       if (grid.hasAttribute('data-spots-placeholder')) {
         var ph = document.createElement('article');
         ph.className = 'card-spot fade-in';
@@ -81,7 +91,7 @@
           '<div class="card-spot__body">' +
             '<h2 class="card-spot__name">スポット情報 準備中</h2>' +
             '<span class="card-spot__tag">その他</span>' +
-            '<p class="card-spot__desc">新しいおすすめスポットを随時追加していきます。</p>' +
+            (withDesc ? '<p class="card-spot__desc">新しいおすすめスポットを随時追加していきます。</p>' : '') +
           '</div>';
         grid.appendChild(ph);
       }
