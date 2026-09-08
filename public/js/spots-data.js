@@ -26,11 +26,12 @@
      info     … { address, tel, hours, holiday, web } すべて任意
      message  … 詳細ページ「灘チャレンジとのつながり」（任意）
      caption  … 写真キャプション（任意）
-     related  … { heading, image } 詳細ページの地図の下に見出し＋画像を追加（任意）
+     related  … { heading, image } Information欄の最後に見出し＋画像の行を追加（任意）
                 image に書いたパスがそのまま使われる（img/ からの相対）
                 例: img/npo-hanataba-song-qr.jpg
-                描画は spot-detail.js の「8. 関連情報」が担当。
-                画像ファイルが無い場合はセクションごと非表示になる
+                既存の住所・電話…と同じ行の仕組みを流用するため、
+                見た目は追加CSS無しでサイトに馴染む。
+                画像ファイルが無い場合はその行だけ非表示になる
      zip / price / wheelchair … 保持のみ。現状は画面に出ません
 
    ■ 出所
@@ -47,7 +48,10 @@
      2026-09-08: NPO法人 花たば（npo-hanataba）に related（関連情報・画像）を追加。
                   掲載画像は img/npo-hanataba-song-qr.jpg
                   （テーマソングのQRコード。店舗からの掲載依頼）
-                  あわせて spot-detail.js に「8. 関連情報」の描画処理を追加
+                  あわせて spot-detail.js のInformation欄の描画に、
+                  related を最後の行として追加する処理を実装
+                  （※独立セクションとして地図の下に追加する初版は
+                    実機で見た目が崩れたため、この方式に変更）
    ============================================================ */
 window.NADA_DATA = {
 
