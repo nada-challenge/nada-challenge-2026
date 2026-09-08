@@ -9,8 +9,12 @@
      データがある店だけ表示。無ければ既存の「準備中」表示のまま。
    ★ related（関連情報）は spots-data.js 側に
        related: { heading: "関連情報", image: "img/◯◯.jpg" }
-     と書くと、地図の下に見出し＋画像が追加される。
+     と書くと、Information欄（住所・電話…の並び）の最後に
+     「見出し＋画像」の行として追加される。新しい箱は作らず、
+     既存の spot-info__dt / spot-info__dd をそのまま使うため、
+     サイト側の見た目にそのまま馴染む。
      画像が無い店・related を書いていない店では何も起きない。
+     画像の読み込みに失敗した場合はその行だけ非表示になる。
    ★ 読み込み順は spots-data.js → spot-detail.js（このファイル）
      の順であること（spot-detail.html はその順で読み込み済み）。
 
@@ -128,7 +132,8 @@
       ['営業時間', spot.info.hours],
       ['定休日', spot.info.holiday]
     ];
-    var hasAny = rows.some(function (r) { return !!r[1]; }) || !!spot.info.web;
+    var hasRelated = !!(spot.related && spot.related.image);
+    var hasAny = rows.some(function (r) { return !!r[1]; }) || !!spot.info.web || hasRelated;
     if (hasAny) {
       info.innerHTML = '';
       var dl = document.createElement('dl');
@@ -159,6 +164,30 @@
         dl.appendChild(dtW);
         dl.appendChild(ddW);
       }
+      /* related（関連情報・画像）: 既存のInformation行と同じ dt/dd を
+         使い回すことで、独自のレイアウトを持ち込まずに確実に馴染ませる。
+         画像が読み込めない場合はこの行ごと非表示にする。 */
+      if (hasRelated) {
+        var dtR = document.createElement('dt');
+        dtR.className = 'spot-info__dt';
+        dtR.textContent = spot.related.heading || '関連情報';
+        var ddR = document.createElement('dd');
+        ddR.className = 'spot-info__dd';
+        var imgR = document.createElement('img');
+        imgR.alt = spot.name + '　' + (spot.related.heading || '関連情報');
+        imgR.style.maxWidth = '160px';
+        imgR.style.width = '100%';
+        imgR.style.height = 'auto';
+        imgR.style.display = 'block';
+        imgR.addEventListener('error', function () {
+          dtR.hidden = true;
+          ddR.hidden = true;
+        });
+        imgR.src = spot.related.image;
+        ddR.appendChild(imgR);
+        dl.appendChild(dtR);
+        dl.appendChild(ddR);
+      }
       info.appendChild(dl);
     }
   }
@@ -181,62 +210,5 @@
     mapFrame.src = 'https://www.google.com/maps?q=' + encoded + '&output=embed';
     if (mapLink) mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encoded;
     mapWrap.hidden = false;
-  }
-
-  /* ====== 8. 関連情報 related（任意・見出し＋画像） ======
-     spots-data.js の related: { heading, image } を読んで、
-     地図（無ければ店舗情報）の下に見出しと画像を追加する。
-     ・spot-detail.html の編集は不要（枠が無ければ動的に生成）
-     ・CSSの追加も不要（最低限の見た目はここで指定）
-     ・画像の読み込みに失敗した場合はセクションごと非表示にする  */
-  if (spot.related && spot.related.image) {
-    var relHeading = spot.related.heading || '関連情報';
-
-    /* 将来 spot-detail.html に data-spot-related-wrap を用意した場合はそちらを優先 */
-    var relWrap = q('data-spot-related-wrap');
-    var relImgEl = null;
-
-    if (relWrap) {
-      var relHeadEl = q('data-spot-related-heading');
-      relImgEl = q('data-spot-related-img');
-      if (relHeadEl) relHeadEl.textContent = relHeading;
-      relWrap.hidden = false;
-    } else {
-      var relAnchor = q('data-spot-map-wrap') || q('data-spot-info');
-      if (relAnchor) {
-        var relHost = (relAnchor.closest && relAnchor.closest('section')) || relAnchor;
-
-        relWrap = document.createElement('section');
-        relWrap.className = 'spot-related';
-        relWrap.style.marginTop = '2.5rem';
-
-        var relH = document.createElement('h2');
-        relH.className = 'spot-related__title';
-        relH.textContent = relHeading;
-        relWrap.appendChild(relH);
-
-        relImgEl = document.createElement('img');
-        relImgEl.className = 'spot-related__img';
-        /* QRコードが大きくなりすぎないよう上限を設ける */
-        relImgEl.style.maxWidth = '220px';
-        relImgEl.style.width = '100%';
-        relImgEl.style.height = 'auto';
-        relImgEl.style.display = 'block';
-        relImgEl.style.marginTop = '0.75rem';
-        relWrap.appendChild(relImgEl);
-
-        if (relHost.parentNode) {
-          relHost.parentNode.insertBefore(relWrap, relHost.nextSibling);
-        }
-      }
-    }
-
-    if (relImgEl) {
-      relImgEl.alt = spot.name + '　' + relHeading;
-      relImgEl.addEventListener('error', function () {
-        if (relWrap) relWrap.hidden = true;
-      });
-      relImgEl.src = spot.related.image;
-    }
   }
 })();
