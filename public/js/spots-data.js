@@ -26,6 +26,10 @@
      info     … { address, tel, hours, holiday, web } すべて任意
      message  … 詳細ページ「灘チャレンジとのつながり」（任意）
      caption  … 写真キャプション（任意）
+     related  … { heading, image } 詳細ページ下部に見出し＋画像を追加表示（任意）
+                画像は img/related/{slug}.jpg に置く
+                ※ 2026-09-08時点ではデータのみ。spot-detail.js/html側の
+                  表示ロジックは未実装のため、別途対応が必要
      zip / price / wheelchair … 保持のみ。現状は画面に出ません
 
    ■ 出所
@@ -39,6 +43,9 @@
      2026-08-21: ベーカリーショップレマンの一言コメントを店舗からの修正依頼に基づき変更
                   （「おじいさんとおばあさんでやってます！」→「親子でやってます！」）
      2026-09-05: 古美術新井を削除依頼により削除
+     2026-09-08: NPO法人 花たば（npo-hanataba）に related（関連情報・画像）を追加。
+                  掲載画像は img/related/npo-hanataba.jpg に配置予定
+                  （テーマソングのQRコード。店舗からの掲載依頼）
    ============================================================ */
 window.NADA_DATA = {
 
@@ -518,6 +525,10 @@ window.NADA_DATA = {
         tel: "078-801-6632",
         hours: "9:00〜17:00 ※日曜、祝日は9:00〜13:00",
         holiday: "なし",
+      },
+      related: {
+        heading: "関連情報",
+        image: "img/related/npo-hanataba.jpg",
       },
     },
     {
