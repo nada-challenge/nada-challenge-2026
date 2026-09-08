@@ -27,7 +27,8 @@
      message  … 詳細ページ「灘チャレンジとのつながり」（任意）
      caption  … 写真キャプション（任意）
      related  … { heading, image } 詳細ページの地図の下に見出し＋画像を追加（任意）
-                画像は img/related/{slug}.jpg に置く
+                image に書いたパスがそのまま使われる（img/ からの相対）
+                例: img/npo-hanataba-song-qr.jpg
                 描画は spot-detail.js の「8. 関連情報」が担当。
                 画像ファイルが無い場合はセクションごと非表示になる
      zip / price / wheelchair … 保持のみ。現状は画面に出ません
@@ -44,7 +45,7 @@
                   （「おじいさんとおばあさんでやってます！」→「親子でやってます！」）
      2026-09-05: 古美術新井を削除依頼により削除
      2026-09-08: NPO法人 花たば（npo-hanataba）に related（関連情報・画像）を追加。
-                  掲載画像は img/related/npo-hanataba.jpg
+                  掲載画像は img/npo-hanataba-song-qr.jpg
                   （テーマソングのQRコード。店舗からの掲載依頼）
                   あわせて spot-detail.js に「8. 関連情報」の描画処理を追加
    ============================================================ */
@@ -529,7 +530,7 @@ window.NADA_DATA = {
       },
       related: {
         heading: "関連情報",
-        image: "img/related/npo-hanataba.jpg",
+        image: "img/npo-hanataba-song-qr.jpg",
       },
     },
     {
