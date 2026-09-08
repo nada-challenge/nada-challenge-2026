@@ -5,8 +5,12 @@
    URL の ?slug=◯◯ を読み取り、js/spots-data.js（window.NADA_DATA）
    から該当スポットを探してページ各所に流し込む。
 
-   ★ 任意項目（caption / body / info / mapQuery / message）は、
+   ★ 任意項目（caption / body / info / mapQuery / message / related）は、
      データがある店だけ表示。無ければ既存の「準備中」表示のまま。
+   ★ related（関連情報）は spots-data.js 側に
+       related: { heading: "関連情報", image: "img/related/{slug}.jpg" }
+     と書くと、地図の下に見出し＋画像が追加される。
+     画像が無い店・related を書いていない店では何も起きない。
    ★ 読み込み順は spots-data.js → spot-detail.js（このファイル）
      の順であること（spot-detail.html はその順で読み込み済み）。
 
@@ -177,5 +181,62 @@
     mapFrame.src = 'https://www.google.com/maps?q=' + encoded + '&output=embed';
     if (mapLink) mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encoded;
     mapWrap.hidden = false;
+  }
+
+  /* ====== 8. 関連情報 related（任意・見出し＋画像） ======
+     spots-data.js の related: { heading, image } を読んで、
+     地図（無ければ店舗情報）の下に見出しと画像を追加する。
+     ・spot-detail.html の編集は不要（枠が無ければ動的に生成）
+     ・CSSの追加も不要（最低限の見た目はここで指定）
+     ・画像の読み込みに失敗した場合はセクションごと非表示にする  */
+  if (spot.related && spot.related.image) {
+    var relHeading = spot.related.heading || '関連情報';
+
+    /* 将来 spot-detail.html に data-spot-related-wrap を用意した場合はそちらを優先 */
+    var relWrap = q('data-spot-related-wrap');
+    var relImgEl = null;
+
+    if (relWrap) {
+      var relHeadEl = q('data-spot-related-heading');
+      relImgEl = q('data-spot-related-img');
+      if (relHeadEl) relHeadEl.textContent = relHeading;
+      relWrap.hidden = false;
+    } else {
+      var relAnchor = q('data-spot-map-wrap') || q('data-spot-info');
+      if (relAnchor) {
+        var relHost = (relAnchor.closest && relAnchor.closest('section')) || relAnchor;
+
+        relWrap = document.createElement('section');
+        relWrap.className = 'spot-related';
+        relWrap.style.marginTop = '2.5rem';
+
+        var relH = document.createElement('h2');
+        relH.className = 'spot-related__title';
+        relH.textContent = relHeading;
+        relWrap.appendChild(relH);
+
+        relImgEl = document.createElement('img');
+        relImgEl.className = 'spot-related__img';
+        /* QRコードが大きくなりすぎないよう上限を設ける */
+        relImgEl.style.maxWidth = '220px';
+        relImgEl.style.width = '100%';
+        relImgEl.style.height = 'auto';
+        relImgEl.style.display = 'block';
+        relImgEl.style.marginTop = '0.75rem';
+        relWrap.appendChild(relImgEl);
+
+        if (relHost.parentNode) {
+          relHost.parentNode.insertBefore(relWrap, relHost.nextSibling);
+        }
+      }
+    }
+
+    if (relImgEl) {
+      relImgEl.alt = spot.name + '　' + relHeading;
+      relImgEl.addEventListener('error', function () {
+        if (relWrap) relWrap.hidden = true;
+      });
+      relImgEl.src = spot.related.image;
+    }
   }
 })();
