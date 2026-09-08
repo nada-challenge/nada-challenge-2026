@@ -8,7 +8,7 @@
    ★ 任意項目（caption / body / info / mapQuery / message / related）は、
      データがある店だけ表示。無ければ既存の「準備中」表示のまま。
    ★ related（関連情報）は spots-data.js 側に
-       related: { heading: "関連情報", image: "img/related/{slug}.jpg" }
+       related: { heading: "関連情報", image: "img/◯◯.jpg" }
      と書くと、地図の下に見出し＋画像が追加される。
      画像が無い店・related を書いていない店では何も起きない。
    ★ 読み込み順は spots-data.js → spot-detail.js（このファイル）
