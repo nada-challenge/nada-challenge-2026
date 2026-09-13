@@ -23,7 +23,9 @@
      category … 必須。上記5種のいずれか
      desc     … 一覧カードの一言コメント
      body     … 詳細ページ「どんなところ？」の本文（文字列 or 配列）
-     info     … { address, tel, hours, holiday, web } すべて任意
+     info     … { address, tel, hours, holiday, web, instagram } すべて任意
+                instagram はユーザー名のみ（@不要）。Information欄に
+                「Instagram」行として @ユーザー名 のリンクが追加される
      message  … 詳細ページ「灘チャレンジとのつながり」（任意）
      caption  … 写真キャプション（任意）
      related  … { heading, image } Information欄の最後に見出し＋画像の行を追加（任意）
@@ -52,6 +54,15 @@
                   related を最後の行として追加する処理を実装
                   （※独立セクションとして地図の下に追加する初版は
                     実機で見た目が崩れたため、この方式に変更）
+     2026-09-13: info.instagram キーを新設（店舗からのSNS掲載依頼に対応）。
+                  spot-detail.js のInformation欄描画にInstagram行を追加。
+                  対象：神戸学生青年センター（HP+Instagram）、
+                  もみの木動物病院、工房壱、brasserie_a_route
+                  （工房壱・brasserie_a_route のアカウントはWeb検索で確認）
+                  神戸学生青年センターに info.web（https://ksyc.jp）も追加。
+                  有限会社本村運送・ふくべの一言コメントを店舗からの
+                  修正依頼に基づき更新。赤玉スポーツの一言コメントを追加
+                  （住所は依然未確定のためTODOを維持）。
    ============================================================ */
 window.NADA_DATA = {
 
@@ -220,14 +231,15 @@ window.NADA_DATA = {
         address: "兵庫県神戸市灘区水道筋3丁目4-7",
         hours: "17:30〜21:00（金土日は11:30〜16:00も営業）",
         holiday: "月曜日",
+        instagram: "brasserie_a_route",
       },
     },
     {
       slug: "fukube",
       name: "ふくべ",
       category: "restaurant",
-      desc: "六甲道駅前にて創業80年の老舗居酒屋　ホールスタッフ募集中　学生さん･パートさん大歓迎",
-      body: "六甲道駅前にて創業80年の老舗居酒屋　ホールスタッフ募集中　学生さん･パートさん大歓迎",
+      desc: "当店でアルバイトされた学生さんは延べ100人以上　灘チャレンジの歴代OB＆OGも当店でアルバイトされていました　あなたもその1人になりませんか？　詳細はSNSにてUP",
+      body: "当店でアルバイトされた学生さんは延べ100人以上　灘チャレンジの歴代OB＆OGも当店でアルバイトされていました　あなたもその1人になりませんか？　詳細はSNSにてUP",
       zip: "657-0037",
       info: {
         address: "兵庫県神戸市灘区備後町3丁目2-13 スカイヒル六甲道ビル2F",
@@ -487,6 +499,7 @@ window.NADA_DATA = {
         tel: "078-766-9067",
         hours: "11:00-18:00",
         holiday: "日曜日＋不定休に変更",
+        instagram: "studio_ichi",
       },
     },
     {
@@ -575,6 +588,7 @@ window.NADA_DATA = {
         tel: "078-861-2243",
         hours: "9:00-11:30 / 16:00-18:30(受付予約制)",
         holiday: "年末年始(12/30午後〜1/3)",
+        instagram: "animalclinic_mominoki",
       },
     },
     {
@@ -682,8 +696,8 @@ window.NADA_DATA = {
       slug: "motomura-unso",
       name: "有限会社本村運送",
       category: "other",
-      desc: "創業58年。プライベートも大切にできる会社です。",
-      body: "創業58年。プライベートも大切にできる会社です。",
+      desc: "早いもので創業から58年を数えました。仕事の時間も自分の時間も、人生にはどちらも大切だと考えています。",
+      body: "早いもので創業から58年を数えました。仕事の時間も自分の時間も、人生にはどちらも大切だと考えています。",
       zip: "657-0026",
       info: {
         address: "兵庫県神戸市灘区弓木町3-1",
@@ -762,11 +776,13 @@ window.NADA_DATA = {
         holiday: "不定休",
       },
     },
-    // TODO: 一言コメント・住所ともに未確定。要ヒアリング
+    // TODO: 住所が未確定。要ヒアリング
     {
       slug: "akadama-sports",
       name: "赤玉スポーツ",
       category: "other",
+      desc: "1階はスポーツ用品、シューズ、ウェア、2階は卓球場で、運動教室も行っております。",
+      body: "1階はスポーツ用品、シューズ、ウェア、2階は卓球場で、運動教室も行っております。",
       zip: "657-0831",
       info: {
         tel: "078-801-6101",
@@ -841,6 +857,8 @@ window.NADA_DATA = {
         tel: "078-891-3018",
         hours: "9:00〜18:00",
         holiday: "無休",
+        web: "https://ksyc.jp",
+        instagram: "seinencenter",
       },
     },
     // TODO: 所在地が西宮市（灘区外）。2025サイト表記は「芦屋西宮市民法律事務所」
