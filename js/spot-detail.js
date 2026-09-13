@@ -133,7 +133,7 @@
       ['定休日', spot.info.holiday]
     ];
     var hasRelated = !!(spot.related && spot.related.image);
-    var hasAny = rows.some(function (r) { return !!r[1]; }) || !!spot.info.web || hasRelated;
+    var hasAny = rows.some(function (r) { return !!r[1]; }) || !!spot.info.web || !!spot.info.instagram || hasRelated;
     if (hasAny) {
       info.innerHTML = '';
       var dl = document.createElement('dl');
@@ -163,6 +163,24 @@
         ddW.appendChild(a);
         dl.appendChild(dtW);
         dl.appendChild(ddW);
+      }
+      /* Instagram（任意）: info.instagram にユーザー名（@なし）を書くと
+         Information欄に「Instagram」行として @ユーザー名 のリンクが追加される */
+      if (spot.info.instagram) {
+        var dtIg = document.createElement('dt');
+        dtIg.className = 'spot-info__dt';
+        dtIg.textContent = 'Instagram';
+        var ddIg = document.createElement('dd');
+        ddIg.className = 'spot-info__dd';
+        var aIg = document.createElement('a');
+        var igHandle = String(spot.info.instagram).replace(/^@/, '');
+        aIg.href = 'https://www.instagram.com/' + igHandle + '/';
+        aIg.target = '_blank';
+        aIg.rel = 'noopener noreferrer';
+        aIg.textContent = '@' + igHandle;
+        ddIg.appendChild(aIg);
+        dl.appendChild(dtIg);
+        dl.appendChild(ddIg);
       }
       /* related（関連情報・画像）: 既存のInformation行と同じ dt/dd を
          使い回すことで、独自のレイアウトを持ち込まずに確実に馴染ませる。
